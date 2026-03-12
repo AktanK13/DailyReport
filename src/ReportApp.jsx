@@ -242,7 +242,10 @@ export default function ReportApp() {
                     return `${y}-${m}-${d}`;
                   })()}
                   onChange={(e) => {
-                    if (!e.target.value) return;
+                    if (!e.target.value) {
+                      setReportDate(todayStr());
+                      return;
+                    }
                     const [y, m, d] = e.target.value.split("-");
                     setReportDate(
                       `${String(d).padStart(2, "0")}.${String(m).padStart(
@@ -714,30 +717,78 @@ export default function ReportApp() {
                     }}
                   >
                     <span>Отчёт от {selectedHistory.reportDate}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        try {
-                          navigator.clipboard.writeText(selectedHistory.text);
-                        } catch (e) {
-                          console.error(
-                            "Error copying selected history entry",
-                            e,
-                          );
-                        }
-                      }}
+                    <div
                       style={{
-                        borderRadius: "999px",
-                        border: "1px solid rgba(255,255,255,0.25)",
-                        background: "rgba(255,255,255,0.08)",
-                        color: "rgba(255,255,255,0.95)",
-                        fontSize: "11px",
-                        padding: "4px 10px",
-                        cursor: "pointer",
+                        display: "flex",
+                        gap: "6px",
                       }}
                     >
-                      Копировать
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          try {
+                            navigator.clipboard.writeText(
+                              selectedHistory.text,
+                            );
+                          } catch (e) {
+                            console.error(
+                              "Error copying selected history entry",
+                              e,
+                            );
+                          }
+                        }}
+                        style={{
+                          borderRadius: "999px",
+                          border: "1px solid rgba(255,255,255,0.25)",
+                          background: "rgba(255,255,255,0.08)",
+                          color: "rgba(255,255,255,0.95)",
+                          fontSize: "11px",
+                          padding: "4px 10px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Копировать
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = (history || []).filter(
+                            (h) => h.reportDate !== selectedHistory.reportDate,
+                          );
+                          setHistory(updated);
+                          try {
+                            localStorage.setItem(
+                              HISTORY_KEY,
+                              JSON.stringify(updated),
+                            );
+                          } catch (e) {
+                            console.error("Error updating history store", e);
+                          }
+                          if (
+                            updated.length > 0 &&
+                            selectedHistory &&
+                            updated.some(
+                              (h) => h.reportDate === selectedHistory.reportDate,
+                            )
+                          ) {
+                            setSelectedHistory(updated[0]);
+                          } else {
+                            setSelectedHistory(updated[0] || null);
+                          }
+                        }}
+                        style={{
+                          borderRadius: "999px",
+                          border: "1px solid rgba(255,80,80,0.6)",
+                          background: "rgba(255,80,80,0.12)",
+                          color: "#ff6b6b",
+                          fontSize: "11px",
+                          padding: "4px 10px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Удалить
+                      </button>
+                    </div>
                   </div>
                   <pre
                     style={{
