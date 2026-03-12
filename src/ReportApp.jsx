@@ -6,6 +6,7 @@ const todayStr = () => {
 };
 
 const STORAGE_KEY = "daily_report_fields";
+const HISTORY_KEY = "daily_report_history";
 
 async function loadSaved() {
   try {
@@ -29,11 +30,15 @@ export default function ReportApp() {
   const [todo, setTodo] = useState("");
   const [problems, setProblems] = useState("");
   const [reportDate, setReportDate] = useState(todayStr());
+  const [activeField, setActiveField] = useState(null);
+  const [customTags, setCustomTags] = useState([]);
   const [copied, setCopied] = useState(false);
   const [cleared, setCleared] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [lastSavedDate, setLastSavedDate] = useState(null);
   const [showRestoreBanner, setShowRestoreBanner] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [selectedHistory, setSelectedHistory] = useState(null);
 
   useEffect(() => {
     loadSaved().then((data) => {
@@ -42,19 +47,39 @@ export default function ReportApp() {
         setTodo(data.todo || "");
         setProblems(data.problems || "");
         setReportDate(data.reportDate || todayStr());
+        setCustomTags(data.customTags || []);
         setLastSavedDate(data.date || null);
         if (data.date && data.date !== todayStr()) {
           setShowRestoreBanner(true);
         }
       }
+
+      try {
+        const rawHistory = localStorage.getItem(HISTORY_KEY);
+        const parsed = rawHistory ? JSON.parse(rawHistory) : [];
+        setHistory(parsed);
+        if (parsed && parsed.length > 0) {
+          setSelectedHistory(parsed[0]);
+        }
+      } catch {
+        setHistory([]);
+      }
+
       setLoaded(true);
     });
   }, []);
 
   useEffect(() => {
     if (!loaded) return;
-    saveCurrent({ done, todo, problems, reportDate, date: todayStr() });
-  }, [done, todo, problems, reportDate, loaded]);
+    saveCurrent({
+      done,
+      todo,
+      problems,
+      reportDate,
+      customTags,
+      date: todayStr(),
+    });
+  }, [done, todo, problems, reportDate, customTags, loaded]);
 
   const generateReport = () => {
     return `/done
@@ -77,6 +102,27 @@ export default function ReportApp() {
     });
   };
 
+  const handleSaveReportToHistory = () => {
+    const text = generateReport();
+    try {
+      const entry = {
+        reportDate,
+        text,
+        savedAt: new Date().toISOString(),
+      };
+      let list = history || [];
+      list = Array.isArray(list) ? list : [];
+      list = list.filter((h) => h.reportDate !== reportDate);
+      list.push(entry);
+      list.sort((a, b) => (a.reportDate > b.reportDate ? -1 : 1));
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+      setHistory(list);
+      setSelectedHistory(entry);
+    } catch (e) {
+      console.error("Error saving history", e);
+    }
+  };
+
   const handleClear = () => {
     setDone("");
     setTodo("");
@@ -88,24 +134,50 @@ export default function ReportApp() {
 
   const fields = [
     {
+      id: "done",
       label: "✅ Что делал",
       value: done,
       set: setDone,
       placeholder: "Например: реализовал экран авторизации на Flutter...",
     },
     {
+      id: "todo",
       label: "🔜 Что буду делать",
       value: todo,
       set: setTodo,
       placeholder: "Например: начну работу над Push-уведомлениями...",
     },
     {
+      id: "problems",
       label: "⚠️ Какие проблемы",
       value: problems,
       set: setProblems,
       placeholder: "Нет проблем / опиши если есть...",
     },
   ];
+
+  const baseTags = ["(jira)", "(figma)"];
+  const allTags = [...baseTags, ...customTags];
+
+  const appendTagToActiveField = (tag) => {
+    if (!activeField) return;
+    const append = (prev) => (prev ? `${prev} ${tag}` : tag);
+    if (activeField === "done") setDone(append);
+    if (activeField === "todo") setTodo(append);
+    if (activeField === "problems") setProblems(append);
+  };
+
+  const handleAddCustomTag = () => {
+    const name = window.prompt("Введи название тега (без обязательной #):");
+    if (!name) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const tag = trimmed;
+    setCustomTags((prev) => {
+      if (prev.includes(tag) || baseTags.includes(tag)) return prev;
+      return [...prev, tag];
+    });
+  };
 
   return (
     <div
@@ -262,8 +334,12 @@ export default function ReportApp() {
         )}
 
         {/* Fields */}
-        {fields.map(({ label, value, set, placeholder }) => (
-          <div key={label} style={{ marginBottom: "20px" }}>
+        {fields.map(({ id, label, value, set, placeholder }) => {
+          const linesCount = value ? value.split("\n").length : 0;
+          const charsCount = value.length;
+
+          return (
+            <div key={id} style={{ marginBottom: "20px" }}>
             <label
               style={{
                 display: "block",
@@ -285,6 +361,13 @@ export default function ReportApp() {
               <textarea
                 value={value}
                 onChange={(e) => set(e.target.value)}
+                onFocus={(e) => {
+                  setActiveField(id);
+                  e.target.style.borderColor = "rgba(42,171,238,0.6)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "rgba(255,255,255,0.12)";
+                }}
                 placeholder={placeholder}
                 rows={3}
                 style={{
@@ -303,12 +386,6 @@ export default function ReportApp() {
                   transition: "border 0.2s",
                   minHeight: "72px",
                 }}
-                onFocus={(e) =>
-                  (e.target.style.borderColor = "rgba(42,171,238,0.6)")
-                }
-                onBlur={(e) =>
-                  (e.target.style.borderColor = "rgba(255,255,255,0.12)")
-                }
               />
               <button
                 type="button"
@@ -343,8 +420,88 @@ export default function ReportApp() {
                 🗑
               </button>
             </div>
-          </div>
-        ))}
+              <div
+                style={{
+                  marginTop: "6px",
+                  fontSize: "11px",
+                  color: "rgba(255,255,255,0.35)",
+                }}
+              >
+                {linesCount} строк · {charsCount} символов
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Quick tags */}
+        <div
+          style={{
+            marginBottom: "20px",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "8px",
+            alignItems: "center",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "12px",
+              color: "rgba(255,255,255,0.5)",
+              marginRight: "4px",
+            }}
+          >
+            Быстрые теги:
+          </span>
+          {allTags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => appendTagToActiveField(tag)}
+              style={{
+                borderRadius: "999px",
+                border: "1px solid rgba(255,255,255,0.18)",
+                background: "rgba(255,255,255,0.06)",
+                color: "rgba(255,255,255,0.75)",
+                fontSize: "11px",
+                padding: "4px 10px",
+                cursor: "pointer",
+                transition: "background 0.2s, border-color 0.2s, transform 0.1s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(42,171,238,0.22)";
+                e.currentTarget.style.borderColor = "rgba(42,171,238,0.6)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                e.currentTarget.style.borderColor =
+                  "rgba(255,255,255,0.18)";
+              }}
+            >
+              {tag}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={handleAddCustomTag}
+            style={{
+              borderRadius: "999px",
+              border: "1px dashed rgba(255,255,255,0.3)",
+              background: "transparent",
+              color: "rgba(255,255,255,0.6)",
+              fontSize: "14px",
+              padding: "2px 8px",
+              cursor: "pointer",
+              lineHeight: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minWidth: "24px",
+              minHeight: "24px",
+            }}
+          >
+            +
+          </button>
+        </div>
 
         {/* Preview */}
         <div
@@ -381,37 +538,204 @@ export default function ReportApp() {
           </pre>
         </div>
 
-        {/* Copy button */}
-        <button
-          onClick={handleCopy}
+        {/* Copy & Save buttons */}
+        <div
           style={{
-            width: "100%",
-            padding: "14px",
-            borderRadius: "14px",
-            border: "none",
-            background: copied
-              ? "linear-gradient(135deg, #00b09b, #00c853)"
-              : "linear-gradient(135deg, #2AABEE, #229ED9)",
-            color: "#fff",
-            fontWeight: "700",
-            fontSize: "16px",
-            cursor: "pointer",
-            transition: "all 0.3s",
-            boxShadow: "0 4px 20px rgba(42,171,238,0.35)",
+            display: "flex",
+            gap: "10px",
+            marginBottom: "10px",
           }}
         >
-          {copied ? "✅ Скопировано!" : "📋 Скопировать отчёт"}
-        </button>
+          <button
+            onClick={handleCopy}
+            style={{
+              flex: 1,
+              padding: "14px",
+              borderRadius: "14px",
+              border: "none",
+              background: copied
+                ? "linear-gradient(135deg, #00b09b, #00c853)"
+                : "linear-gradient(135deg, #2AABEE, #229ED9)",
+              color: "#fff",
+              fontWeight: "700",
+              fontSize: "16px",
+              cursor: "pointer",
+              transition: "all 0.3s",
+              boxShadow: "0 4px 20px rgba(42,171,238,0.35)",
+            }}
+          >
+            {copied ? "✅ Скопировано!" : "📋 Скопировать отчёт"}
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveReportToHistory}
+            style={{
+              padding: "14px 18px",
+              borderRadius: "14px",
+              border: "1px solid rgba(255,255,255,0.18)",
+              background: "rgba(255,255,255,0.06)",
+              color: "rgba(255,255,255,0.85)",
+              fontWeight: "600",
+              fontSize: "14px",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            💾 Сохранить отчёт
+          </button>
+        </div>
 
         <div
           style={{
             textAlign: "center",
             color: "rgba(255,255,255,0.2)",
             fontSize: "12px",
-            marginTop: "14px",
+            marginBottom: "10px",
           }}
         >
-          💾 Поля сохраняются автоматически · Вставь в Telegram Ctrl+V
+          Поля сохраняются автоматически · Вставь в Telegram Ctrl+V
+        </div>
+
+        {/* History */}
+        <div
+          style={{
+            marginTop: "12px",
+            paddingTop: "12px",
+            borderTop: "1px solid rgba(255,255,255,0.12)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "13px",
+              color: "rgba(255,255,255,0.8)",
+              marginBottom: "4px",
+              fontWeight: 600,
+            }}
+          >
+            История отчётов
+          </div>
+          <div
+            style={{
+              fontSize: "11px",
+              color: "rgba(255,255,255,0.45)",
+              marginBottom: "8px",
+            }}
+          >
+            Нажми на дату, чтобы посмотреть и скопировать сохранённый отчёт.
+          </div>
+          {history && history.length > 0 ? (
+            <>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "6px",
+                  marginBottom: "10px",
+                }}
+              >
+                {history.map((item) => (
+                  <button
+                    key={item.reportDate}
+                    type="button"
+                    onClick={() => setSelectedHistory(item)}
+                    style={{
+                      borderRadius: "999px",
+                      border:
+                        selectedHistory &&
+                        selectedHistory.reportDate === item.reportDate
+                          ? "1px solid rgba(42,171,238,0.9)"
+                          : "1px solid rgba(255,255,255,0.18)",
+                      background:
+                        selectedHistory &&
+                        selectedHistory.reportDate === item.reportDate
+                          ? "rgba(42,171,238,0.3)"
+                          : "rgba(255,255,255,0.06)",
+                      color: "rgba(255,255,255,0.9)",
+                      fontSize: "11px",
+                      padding: "4px 12px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {item.reportDate}
+                  </button>
+                ))}
+              </div>
+              {selectedHistory && (
+                <div
+                  style={{
+                    background: "rgba(0,0,0,0.4)",
+                    borderRadius: "12px",
+                    padding: "12px 14px",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: "8px",
+                      fontSize: "12px",
+                      color: "rgba(255,255,255,0.8)",
+                      fontWeight: 500,
+                    }}
+                  >
+                    <span>Отчёт от {selectedHistory.reportDate}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        try {
+                          navigator.clipboard.writeText(selectedHistory.text);
+                        } catch (e) {
+                          console.error(
+                            "Error copying selected history entry",
+                            e,
+                          );
+                        }
+                      }}
+                      style={{
+                        borderRadius: "999px",
+                        border: "1px solid rgba(255,255,255,0.25)",
+                        background: "rgba(255,255,255,0.08)",
+                        color: "rgba(255,255,255,0.95)",
+                        fontSize: "11px",
+                        padding: "4px 10px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Копировать
+                    </button>
+                  </div>
+                  <pre
+                    style={{
+                      margin: 0,
+                      whiteSpace: "pre-wrap",
+                      fontSize: "12px",
+                      color: "rgba(255,255,255,0.9)",
+                      fontFamily: "monospace",
+                      lineHeight: "1.5",
+                      maxHeight: "200px",
+                      overflowY: "auto",
+                    }}
+                  >
+                    {selectedHistory.text}
+                  </pre>
+                </div>
+              )}
+            </>
+          ) : (
+            <div
+              style={{
+                fontSize: "11px",
+                color: "rgba(255,255,255,0.3)",
+              }}
+            >
+              Пока нет сохранённых отчётов
+            </div>
+          )}
         </div>
       </div>
     </div>
