@@ -32,6 +32,7 @@ export default function ReportApp() {
   const [reportDate, setReportDate] = useState(todayStr());
   const [activeField, setActiveField] = useState(null);
   const [customTags, setCustomTags] = useState([]);
+  const [hiddenTags, setHiddenTags] = useState([]);
   const [copied, setCopied] = useState(false);
   const [cleared, setCleared] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -77,9 +78,10 @@ export default function ReportApp() {
       problems,
       reportDate,
       customTags,
+      hiddenTags,
       date: todayStr(),
     });
-  }, [done, todo, problems, reportDate, customTags, loaded]);
+  }, [done, todo, problems, reportDate, customTags, hiddenTags, loaded]);
 
   const generateReport = () => {
     return `/done
@@ -127,6 +129,7 @@ export default function ReportApp() {
     setDone("");
     setTodo("");
     setProblems("");
+    setReportDate(todayStr());
     setCleared(true);
     setShowRestoreBanner(false);
     setTimeout(() => setCleared(false), 2000);
@@ -157,7 +160,6 @@ export default function ReportApp() {
   ];
 
   const baseTags = ["(jira)", "(figma)"];
-  const allTags = [...baseTags, ...customTags];
 
   const appendTagToActiveField = (tag) => {
     if (!activeField) return;
@@ -378,13 +380,17 @@ export default function ReportApp() {
                   padding: "12px 14px",
                   color: "#fff",
                   fontSize: "14px",
-                  resize: "vertical",
+                  resize: "none",
                   outline: "none",
                   boxSizing: "border-box",
                   fontFamily: "inherit",
                   lineHeight: "1.5",
                   transition: "border 0.2s",
                   minHeight: "72px",
+                }}
+                onInput={(e) => {
+                  e.target.style.height = "auto";
+                  e.target.style.height = `${e.target.scrollHeight}px`;
                 }}
               />
               <button
@@ -436,50 +442,74 @@ export default function ReportApp() {
         {/* Quick tags */}
         <div
           style={{
-            marginBottom: "20px",
+            marginBottom: "24px",
             display: "flex",
             flexWrap: "wrap",
-            gap: "8px",
+            gap: "10px",
             alignItems: "center",
           }}
         >
           <span
             style={{
-              fontSize: "12px",
+              fontSize: "13px",
               color: "rgba(255,255,255,0.5)",
-              marginRight: "4px",
+              marginRight: "6px",
             }}
           >
             Быстрые теги:
           </span>
-          {allTags.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => appendTagToActiveField(tag)}
-              style={{
-                borderRadius: "999px",
-                border: "1px solid rgba(255,255,255,0.18)",
-                background: "rgba(255,255,255,0.06)",
-                color: "rgba(255,255,255,0.75)",
-                fontSize: "11px",
-                padding: "4px 10px",
-                cursor: "pointer",
-                transition: "background 0.2s, border-color 0.2s, transform 0.1s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(42,171,238,0.22)";
-                e.currentTarget.style.borderColor = "rgba(42,171,238,0.6)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                e.currentTarget.style.borderColor =
-                  "rgba(255,255,255,0.18)";
-              }}
-            >
-              {tag}
-            </button>
-          ))}
+          {[...baseTags, ...customTags]
+            .filter((tag) => !hiddenTags.includes(tag))
+            .map((tag) => (
+              <div
+                key={tag}
+                className="tag-chip"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  borderRadius: "999px",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  background: "rgba(255,255,255,0.06)",
+                  overflow: "hidden",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => appendTagToActiveField(tag)}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    color: "rgba(255,255,255,0.85)",
+                    fontSize: "12px",
+                    padding: "5px 10px",
+                    cursor: "pointer",
+                  }}
+                >
+                  {tag}
+                </button>
+                <button
+                  type="button"
+                  className="tag-delete"
+                  onClick={() => {
+                    setHiddenTags((prev) =>
+                      prev.includes(tag) ? prev : [...prev, tag],
+                    );
+                    setCustomTags((prev) => prev.filter((t) => t !== tag));
+                  }}
+                  title="Удалить тег"
+                  style={{
+                    border: "none",
+                    background: "rgba(255,80,80,0.18)",
+                    color: "#ff6b6b",
+                    fontSize: "11px",
+                    padding: "5px 7px",
+                    cursor: "pointer",
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
           <button
             type="button"
             onClick={handleAddCustomTag}

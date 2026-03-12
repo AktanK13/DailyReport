@@ -52,6 +52,17 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+.tag-chip .tag-delete {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease-in-out;
+}
+
+.tag-chip:hover .tag-delete {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
