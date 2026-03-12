@@ -8,6 +8,11 @@ const todayStr = () => {
 const STORAGE_KEY = "daily_report_fields";
 const HISTORY_KEY = "daily_report_history";
 
+const withTaskIndent = (text) => {
+  if (!text) return text;
+  return text.replace(/\n-/g, "\n -");
+};
+
 async function loadSaved() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -88,13 +93,13 @@ export default function ReportApp() {
 #Отчет_${reportDate}
 
 - Что делал ?
-  ${done || "(не указано)"}
+ ${withTaskIndent(done) || "(не указано)"}
 
 - Что буду делать ?
-  ${todo || "(не указано)"}
+ ${withTaskIndent(todo) || "(не указано)"}
 
 - Какие проблемы?
-  ${problems || "нет проблем"}`;
+ ${withTaskIndent(problems) || "нет проблем"}`;
   };
 
   const handleCopy = () => {
