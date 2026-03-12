@@ -28,6 +28,7 @@ export default function ReportApp() {
   const [done, setDone] = useState("");
   const [todo, setTodo] = useState("");
   const [problems, setProblems] = useState("");
+  const [reportDate, setReportDate] = useState(todayStr());
   const [copied, setCopied] = useState(false);
   const [cleared, setCleared] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -40,6 +41,7 @@ export default function ReportApp() {
         setDone(data.done || "");
         setTodo(data.todo || "");
         setProblems(data.problems || "");
+        setReportDate(data.reportDate || todayStr());
         setLastSavedDate(data.date || null);
         if (data.date && data.date !== todayStr()) {
           setShowRestoreBanner(true);
@@ -51,13 +53,12 @@ export default function ReportApp() {
 
   useEffect(() => {
     if (!loaded) return;
-    saveCurrent({ done, todo, problems, date: todayStr() });
-  }, [done, todo, problems, loaded]);
+    saveCurrent({ done, todo, problems, reportDate, date: todayStr() });
+  }, [done, todo, problems, reportDate, loaded]);
 
   const generateReport = () => {
-    const date = todayStr();
     return `/done
-#Отчет_${date}
+#Отчет_${reportDate}
 
 - Что делал ?
   ${done || "(не указано)"}
@@ -125,7 +126,7 @@ export default function ReportApp() {
           borderRadius: "24px",
           border: "1px solid rgba(255,255,255,0.1)",
           padding: "36px",
-          maxWidth: "640px",
+          maxWidth: "800px",
           width: "100%",
           boxShadow: "0 25px 50px rgba(0,0,0,0.4)",
         }}
@@ -159,7 +160,32 @@ export default function ReportApp() {
                 Ежедневный отчёт
               </div>
               <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "13px" }}>
-                📅 {todayStr()}
+                📅{" "}
+                <input
+                  type="date"
+                  value={(() => {
+                    const [d, m, y] = reportDate.split(".");
+                    return `${y}-${m}-${d}`;
+                  })()}
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    const [y, m, d] = e.target.value.split("-");
+                    setReportDate(
+                      `${String(d).padStart(2, "0")}.${String(m).padStart(
+                        2,
+                        "0",
+                      )}.${y}`,
+                    );
+                  }}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "rgba(255,255,255,0.75)",
+                    fontSize: "13px",
+                    outline: "none",
+                    cursor: "pointer",
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -192,7 +218,7 @@ export default function ReportApp() {
               }
             }}
           >
-            {cleared ? "✓ Очищено" : "🗑 Очистить"}
+            {cleared ? "✓ Очищено" : "🗑 Очистить все"}
           </button>
         </div>
 
@@ -249,29 +275,74 @@ export default function ReportApp() {
             >
               {label}
             </label>
-            <textarea
-              value={value}
-              onChange={(e) => set(e.target.value)}
-              placeholder={placeholder}
-              rows={3}
+            <div
               style={{
-                width: "100%",
-                background: "rgba(255,255,255,0.07)",
-                border: "1px solid rgba(255,255,255,0.12)",
-                borderRadius: "12px",
-                padding: "12px 14px",
-                color: "#fff",
-                fontSize: "14px",
-                resize: "vertical",
-                outline: "none",
-                boxSizing: "border-box",
-                fontFamily: "inherit",
-                lineHeight: "1.5",
-                transition: "border 0.2s",
+                display: "flex",
+                alignItems: "stretch",
+                gap: "8px",
               }}
-              onFocus={(e) => (e.target.style.borderColor = "rgba(42,171,238,0.6)")}
-              onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.12)")}
-            />
+            >
+              <textarea
+                value={value}
+                onChange={(e) => set(e.target.value)}
+                placeholder={placeholder}
+                rows={3}
+                style={{
+                  flex: 1,
+                  background: "rgba(255,255,255,0.07)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  borderRadius: "12px",
+                  padding: "12px 14px",
+                  color: "#fff",
+                  fontSize: "14px",
+                  resize: "vertical",
+                  outline: "none",
+                  boxSizing: "border-box",
+                  fontFamily: "inherit",
+                  lineHeight: "1.5",
+                  transition: "border 0.2s",
+                  minHeight: "72px",
+                }}
+                onFocus={(e) =>
+                  (e.target.style.borderColor = "rgba(42,171,238,0.6)")
+                }
+                onBlur={(e) =>
+                  (e.target.style.borderColor = "rgba(255,255,255,0.12)")
+                }
+              />
+              <button
+                type="button"
+                onClick={() => set("")}
+                title="Очистить это поле"
+                style={{
+                  width: "40px",
+                  borderRadius: "12px",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "rgba(255,255,255,0.04)",
+                  color: "rgba(255,255,255,0.6)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "18px",
+                  padding: 0,
+                  transition: "background 0.2s, border-color 0.2s, color 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(255,80,80,0.16)";
+                  e.currentTarget.style.borderColor = "rgba(255,80,80,0.4)";
+                  e.currentTarget.style.color = "#ff6b6b";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                  e.currentTarget.style.borderColor =
+                    "rgba(255,255,255,0.12)";
+                  e.currentTarget.style.color = "rgba(255,255,255,0.6)";
+                }}
+              >
+                🗑
+              </button>
+            </div>
           </div>
         ))}
 
