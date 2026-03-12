@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const todayStr = () => {
   const d = new Date();
@@ -185,7 +185,8 @@ export default function ReportApp() {
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
+        background:
+          "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -230,10 +231,14 @@ export default function ReportApp() {
               ✈️
             </div>
             <div>
-              <div style={{ color: "#fff", fontWeight: "700", fontSize: "18px" }}>
+              <div
+                style={{ color: "#fff", fontWeight: "700", fontSize: "18px" }}
+              >
                 Ежедневный отчёт
               </div>
-              <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "13px" }}>
+              <div
+                style={{ color: "rgba(255,255,255,0.45)", fontSize: "13px" }}
+              >
                 📅{" "}
                 <input
                   type="date"
@@ -269,7 +274,9 @@ export default function ReportApp() {
           <button
             onClick={handleClear}
             style={{
-              background: cleared ? "rgba(255,100,100,0.25)" : "rgba(255,255,255,0.07)",
+              background: cleared
+                ? "rgba(255,100,100,0.25)"
+                : "rgba(255,255,255,0.07)",
               border: "1px solid rgba(255,255,255,0.12)",
               borderRadius: "10px",
               color: cleared ? "#ff6b6b" : "rgba(255,255,255,0.5)",
@@ -345,90 +352,91 @@ export default function ReportApp() {
 
           return (
             <div key={id} style={{ marginBottom: "20px" }}>
-            <label
-              style={{
-                display: "block",
-                color: "rgba(255,255,255,0.7)",
-                fontSize: "13px",
-                fontWeight: "600",
-                marginBottom: "8px",
-              }}
-            >
-              {label}
-            </label>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "stretch",
-                gap: "8px",
-              }}
-            >
-              <textarea
-                value={value}
-                onChange={(e) => set(e.target.value)}
-                onFocus={(e) => {
-                  setActiveField(id);
-                  e.target.style.borderColor = "rgba(42,171,238,0.6)";
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = "rgba(255,255,255,0.12)";
-                }}
-                placeholder={placeholder}
-                rows={3}
+              <label
                 style={{
-                  flex: 1,
-                  background: "rgba(255,255,255,0.07)",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  borderRadius: "12px",
-                  padding: "12px 14px",
-                  color: "#fff",
-                  fontSize: "14px",
-                  resize: "none",
-                  outline: "none",
-                  boxSizing: "border-box",
-                  fontFamily: "inherit",
-                  lineHeight: "1.5",
-                  transition: "border 0.2s",
-                  minHeight: "72px",
-                }}
-                onInput={(e) => {
-                  e.target.style.height = "auto";
-                  e.target.style.height = `${e.target.scrollHeight}px`;
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => set("")}
-                title="Очистить это поле"
-                style={{
-                  width: "40px",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(255,255,255,0.04)",
-                  color: "rgba(255,255,255,0.6)",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "18px",
-                  padding: 0,
-                  transition: "background 0.2s, border-color 0.2s, color 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(255,80,80,0.16)";
-                  e.currentTarget.style.borderColor = "rgba(255,80,80,0.4)";
-                  e.currentTarget.style.color = "#ff6b6b";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                  e.currentTarget.style.borderColor =
-                    "rgba(255,255,255,0.12)";
-                  e.currentTarget.style.color = "rgba(255,255,255,0.6)";
+                  display: "block",
+                  color: "rgba(255,255,255,0.7)",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  marginBottom: "8px",
                 }}
               >
-                🗑
-              </button>
-            </div>
+                {label}
+              </label>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "stretch",
+                  gap: "8px",
+                }}
+              >
+                <textarea
+                  value={value}
+                  onChange={(e) => set(e.target.value)}
+                  onFocus={(e) => {
+                    setActiveField(id);
+                    e.target.style.borderColor = "rgba(42,171,238,0.6)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "rgba(255,255,255,0.12)";
+                  }}
+                  placeholder={placeholder}
+                  rows={3}
+                  style={{
+                    flex: 1,
+                    background: "rgba(255,255,255,0.07)",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    borderRadius: "12px",
+                    padding: "12px 14px",
+                    color: "#fff",
+                    fontSize: "14px",
+                    resize: "none",
+                    outline: "none",
+                    boxSizing: "border-box",
+                    fontFamily: "inherit",
+                    lineHeight: "1.5",
+                    transition: "border 0.2s",
+                    minHeight: "72px",
+                  }}
+                  onInput={(e) => {
+                    e.target.style.height = "auto";
+                    e.target.style.height = `${e.target.scrollHeight}px`;
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => set("")}
+                  title="Очистить это поле"
+                  style={{
+                    width: "40px",
+                    borderRadius: "12px",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    background: "rgba(255,255,255,0.04)",
+                    color: "rgba(255,255,255,0.6)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "18px",
+                    padding: 0,
+                    transition:
+                      "background 0.2s, border-color 0.2s, color 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(255,80,80,0.16)";
+                    e.currentTarget.style.borderColor = "rgba(255,80,80,0.4)";
+                    e.currentTarget.style.color = "#ff6b6b";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                    e.currentTarget.style.borderColor =
+                      "rgba(255,255,255,0.12)";
+                    e.currentTarget.style.color = "rgba(255,255,255,0.6)";
+                  }}
+                >
+                  🗑
+                </button>
+              </div>
               <div
                 style={{
                   marginTop: "6px",
@@ -727,9 +735,7 @@ export default function ReportApp() {
                         type="button"
                         onClick={() => {
                           try {
-                            navigator.clipboard.writeText(
-                              selectedHistory.text,
-                            );
+                            navigator.clipboard.writeText(selectedHistory.text);
                           } catch (e) {
                             console.error(
                               "Error copying selected history entry",
@@ -768,7 +774,8 @@ export default function ReportApp() {
                             updated.length > 0 &&
                             selectedHistory &&
                             updated.some(
-                              (h) => h.reportDate === selectedHistory.reportDate,
+                              (h) =>
+                                h.reportDate === selectedHistory.reportDate,
                             )
                           ) {
                             setSelectedHistory(updated[0]);
