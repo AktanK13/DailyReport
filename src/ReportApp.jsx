@@ -52,7 +52,12 @@ export default function ReportApp() {
         setDone(data.done || "");
         setTodo(data.todo || "");
         setProblems(data.problems || "");
-        setReportDate(data.reportDate || todayStr());
+        // Если сохранённая дата из прошлого дня — начинаем с сегодняшней
+        if (data.date && data.date !== todayStr()) {
+          setReportDate(todayStr());
+        } else {
+          setReportDate(data.reportDate || todayStr());
+        }
         setCustomTags(data.customTags || []);
         setLastSavedDate(data.date || null);
         if (data.date && data.date !== todayStr()) {
