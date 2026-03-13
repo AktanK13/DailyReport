@@ -13,6 +13,28 @@ const withTaskIndent = (text) => {
   return text.replace(/\n-/g, "\n -");
 };
 
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function transformReportToHtml(text) {
+  const lines = text.split("\n");
+  const htmlLines = lines.map((line) => {
+    const match = line.match(
+      /^(?<indent>\s*(?:-\s*)?)\(\s*(?<tag>[^=]*?)\s*=\s*(?<url>[^)]+)\)\s*$/,
+    );
+    if (match && match.groups) {
+      const { indent, tag, url } = match.groups;
+      const tagText = `(${tag.trim()})`;
+      const safeUrl = escapeHtml(url.trim());
+      const safeTag = escapeHtml(tagText);
+      return `${escapeHtml(indent)}<a href="${safeUrl}">${safeTag}</a>`;
+    }
+    return escapeHtml(line);
+  });
+  return htmlLines.join("\n");
+}
+
 async function loadSaved() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -31,6 +53,8 @@ async function saveCurrent(data) {
 }
 
 export default function ReportApp() {
+  const [profileName, setProfileName] = useState("");
+  const [profileAvatar, setProfileAvatar] = useState("");
   const [done, setDone] = useState("");
   const [todo, setTodo] = useState("");
   const [problems, setProblems] = useState("");
@@ -48,6 +72,7 @@ export default function ReportApp() {
   const [history, setHistory] = useState([]);
   const [selectedHistory, setSelectedHistory] = useState(null);
   const textareasRef = useRef({});
+  const avatarFileInputRef = useRef(null);
   const [showAddTagModal, setShowAddTagModal] = useState(false);
   const [addTagInputValue, setAddTagInputValue] = useState("");
   const addTagInputRef = useRef(null);
@@ -55,6 +80,8 @@ export default function ReportApp() {
   useEffect(() => {
     loadSaved().then((data) => {
       if (data) {
+        setProfileName(data.profileName || "");
+        setProfileAvatar(data.profileAvatar || "");
         setDone(data.done || "");
         setTodo(data.todo || "");
         setProblems(data.problems || "");
@@ -88,6 +115,8 @@ export default function ReportApp() {
   useEffect(() => {
     if (!loaded) return;
     saveCurrent({
+      profileName,
+      profileAvatar,
       done,
       todo,
       problems,
@@ -96,7 +125,17 @@ export default function ReportApp() {
       hiddenTags,
       date: todayStr(),
     });
-  }, [done, todo, problems, reportDate, customTags, hiddenTags, loaded]);
+  }, [
+    profileName,
+    profileAvatar,
+    done,
+    todo,
+    problems,
+    reportDate,
+    customTags,
+    hiddenTags,
+    loaded,
+  ]);
 
   // синхронизация высоты полей с содержимым при загрузке/восстановлении
   useEffect(() => {
@@ -125,10 +164,25 @@ export default function ReportApp() {
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(generateReport()).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    });
+    const plain = generateReport();
+    const html = transformReportToHtml(plain);
+    const htmlBlob = new Blob([html], { type: "text/html" });
+    const plainBlob = new Blob([plain], { type: "text/plain" });
+
+    navigator.clipboard
+      .write([
+        new ClipboardItem({ "text/html": htmlBlob, "text/plain": plainBlob }),
+      ])
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      })
+      .catch(() => {
+        navigator.clipboard.writeText(plain).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2500);
+        });
+      });
   };
 
   const handleSendToTelegram = async () => {
@@ -217,7 +271,7 @@ export default function ReportApp() {
     },
   ];
 
-  const baseTags = [ "(jira = )", "(figma = )" ];
+  const baseTags = ["(jira = )", "(figma = )"];
 
   const appendTagToActiveField = (tag) => {
     if (!activeField) return;
@@ -278,7 +332,9 @@ export default function ReportApp() {
 
   const submitAddTag = () => {
     const match = addTagInputValue.match(/\(([^=]*)=\s*\)/);
-    const name = match ? match[1].trim() : addTagInputValue.replace(/^\(|=\s*\)$/g, "").trim();
+    const name = match
+      ? match[1].trim()
+      : addTagInputValue.replace(/^\(|=\s*\)$/g, "").trim();
     if (!name) {
       closeAddTagModal();
       return;
@@ -289,6 +345,18 @@ export default function ReportApp() {
       return [...prev, tag];
     });
     closeAddTagModal();
+  };
+
+  const handleAvatarFileChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setProfileAvatar(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -320,29 +388,110 @@ export default function ReportApp() {
         <div
           style={{
             display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
+            flexDirection: "column",
+            gap: "16px",
             marginBottom: "20px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div
+          {/* Row 1: профиль */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "32px",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => avatarFileInputRef.current?.click()}
+              title="Изменить аватар"
               style={{
-                width: "42px",
-                height: "42px",
-                borderRadius: "12px",
-                background: "linear-gradient(135deg, #2AABEE, #229ED9)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "22px",
+                padding: 0,
+                margin: 0,
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
               }}
             >
-              ✈️
+              <div
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "50%",
+                  background: profileAvatar?.trim()
+                    ? "transparent"
+                    : "linear-gradient(135deg, #2AABEE, #229ED9)",
+                  overflow: "hidden",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "18px",
+                  color: "#fff",
+                  flexShrink: 0,
+                  border: "1px solid rgba(255,255,255,0.25)",
+                }}
+              >
+                {profileAvatar?.trim() ? (
+                  <img
+                    src={profileAvatar}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                ) : (
+                  (profileName || "DR")
+                    .trim()
+                    .split(" ")
+                    .map((p) => p[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2)
+                )}
+              </div>
+            </button>
+            <div>
+              <input
+                type="text"
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                placeholder="Твоё имя"
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: "#fff",
+                  fontWeight: 600,
+                  fontSize: "32px",
+                  outline: "none",
+                  padding: 0,
+                  margin: 0,
+                  width: "200px",
+                }}
+              />
+              <input
+                ref={avatarFileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarFileChange}
+                style={{ display: "none" }}
+              />
             </div>
+          </div>
+
+          {/* Row 2: Ежедневный отчёт + кнопка очистки */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "12px",
+            }}
+          >
             <div>
               <div
-                style={{ color: "#fff", fontWeight: "700", fontSize: "18px" }}
+                style={{ color: "#fff", fontWeight: "700", fontSize: "22px" }}
               >
                 Ежедневный отчёт
               </div>
@@ -380,40 +529,41 @@ export default function ReportApp() {
                 />
               </div>
             </div>
+
+            <button
+              onClick={handleClear}
+              style={{
+                background: cleared
+                  ? "rgba(255,100,100,0.25)"
+                  : "rgba(255,255,255,0.07)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: "10px",
+                color: cleared ? "#ff6b6b" : "rgba(255,255,255,0.5)",
+                fontSize: "13px",
+                fontWeight: "600",
+                padding: "8px 14px",
+                cursor: "pointer",
+                transition: "all 0.25s",
+                whiteSpace: "nowrap",
+              }}
+              onMouseEnter={(e) => {
+                if (!cleared) {
+                  e.currentTarget.style.background = "rgba(255,80,80,0.15)";
+                  e.currentTarget.style.color = "#ff6b6b";
+                  e.currentTarget.style.borderColor = "rgba(255,80,80,0.3)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!cleared) {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.07)";
+                  e.currentTarget.style.color = "rgba(255,255,255,0.5)";
+                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
+                }
+              }}
+            >
+              {cleared ? "✓ Очищено" : "🗑 Очистить все"}
+            </button>
           </div>
-          <button
-            onClick={handleClear}
-            style={{
-              background: cleared
-                ? "rgba(255,100,100,0.25)"
-                : "rgba(255,255,255,0.07)",
-              border: "1px solid rgba(255,255,255,0.12)",
-              borderRadius: "10px",
-              color: cleared ? "#ff6b6b" : "rgba(255,255,255,0.5)",
-              fontSize: "13px",
-              fontWeight: "600",
-              padding: "8px 14px",
-              cursor: "pointer",
-              transition: "all 0.25s",
-              whiteSpace: "nowrap",
-            }}
-            onMouseEnter={(e) => {
-              if (!cleared) {
-                e.currentTarget.style.background = "rgba(255,80,80,0.15)";
-                e.currentTarget.style.color = "#ff6b6b";
-                e.currentTarget.style.borderColor = "rgba(255,80,80,0.3)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!cleared) {
-                e.currentTarget.style.background = "rgba(255,255,255,0.07)";
-                e.currentTarget.style.color = "rgba(255,255,255,0.5)";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
-              }
-            }}
-          >
-            {cleared ? "✓ Очищено" : "🗑 Очистить все"}
-          </button>
         </div>
 
         {/* Banner: loaded from previous day */}
@@ -696,7 +846,7 @@ export default function ReportApp() {
           </pre>
         </div>
 
-        {/* Send, Copy & Save buttons */}
+        {/* Copy, Send & Save buttons */}
         <div
           style={{
             display: "flex",
@@ -705,35 +855,7 @@ export default function ReportApp() {
             alignItems: "stretch",
           }}
         >
-          {/* Большая кнопка "В Telegram" */}
-          <button
-            type="button"
-            onClick={handleSendToTelegram}
-            disabled={sending}
-            style={{
-              flex: 1,
-              padding: "14px",
-              borderRadius: "14px",
-              border: "none",
-              background: sending
-                ? "linear-gradient(135deg, #1e88e5, #1565c0)"
-                : "linear-gradient(135deg, #2AABEE, #229ED9)",
-              color: "#fff",
-              fontWeight: "700",
-              fontSize: "16px",
-              cursor: sending ? "default" : "pointer",
-              boxShadow: "0 4px 20px rgba(42,171,238,0.35)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {sending ? "⏳ Отправка в Telegram..." : "✈️ Отправить в Telegram"}
-          </button>
-
-          {/* Справа две маленькие кнопки */}
+          {/* Большая кнопка \"Скопировать\" */}
           <button
             onClick={handleCopy}
             onMouseEnter={(e) => {
@@ -747,21 +869,53 @@ export default function ReportApp() {
               e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)";
             }}
             style={{
-              padding: "10px 12px",
+              flex: 1,
+              padding: "14px",
               borderRadius: "14px",
               border: "1px solid rgba(255,255,255,0.18)",
               background: copied
                 ? "linear-gradient(135deg, #00b09b, #00c853)"
                 : "rgba(255,255,255,0.06)",
-              color: "rgba(255,255,255,0.95)",
-              fontWeight: "600",
-              fontSize: "13px",
+              color: "#fff",
+              fontWeight: "700",
+              fontSize: "16px",
               cursor: "pointer",
               transition: "all 0.3s",
-              minWidth: "120px",
+              boxShadow: "0 4px 20px rgba(42,171,238,0.25)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              whiteSpace: "nowrap",
             }}
           >
-            {copied ? "✅ Скопировано" : "📋 Скопировать"}
+            {copied ? "✅ Скопировано" : "📋 Скопировать отчёт"}
+          </button>
+
+          {/* Справа две маленькие кнопки */}
+          <button
+            type="button"
+            onClick={handleSendToTelegram}
+            disabled={sending}
+            style={{
+              padding: "10px 12px",
+              borderRadius: "14px",
+              border: "1px solid rgba(42,171,238,0.6)",
+              background: sending
+                ? "rgba(42,171,238,0.18)"
+                : "rgba(42,171,238,0.24)",
+              color: "#e3f5ff",
+              fontWeight: "600",
+              fontSize: "13px",
+              cursor: sending ? "default" : "pointer",
+              whiteSpace: "nowrap",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              minWidth: "130px",
+            }}
+          >
+            {sending ? "⏳" : "✈️ Отправить в Telegram"}
           </button>
           <button
             type="button"
@@ -1061,7 +1215,13 @@ export default function ReportApp() {
                 marginBottom: "14px",
               }}
             />
-            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                justifyContent: "flex-end",
+              }}
+            >
               <button
                 type="button"
                 onClick={closeAddTagModal}
