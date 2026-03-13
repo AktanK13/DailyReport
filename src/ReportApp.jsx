@@ -719,17 +719,6 @@ export default function ReportApp() {
             💾 Сохранить отчёт
           </button>
         </div>
-
-        <div
-          style={{
-            textAlign: "center",
-            color: "rgba(255,255,255,0.2)",
-            fontSize: "12px",
-            marginBottom: "4px",
-          }}
-        >
-          Поля сохраняются автоматически · Вставь в Telegram Ctrl+V
-        </div>
         {sendStatus === "ok" && (
           <div
             style={{
