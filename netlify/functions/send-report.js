@@ -9,29 +9,32 @@ function escapeHtml(str) {
 }
 
 // Превращаем строки вида
-// "- (jira = https://...)" -> "- <a href="https://...">(jira)</a>"
-// "- (figma = https://...)" -> "- <a href="https://...">(figma)</a>"
-// Остальной текст просто HTML-экранируем
+// " - (jira = https://...)" или "(jira = https://...)" -> " - <a href="...">(jira)</a>"
+// Аналогично для (figma = url). Остальной текст HTML-экранируем.
 function transformReportToHtml(text) {
   const lines = text.split("\n");
   const htmlLines = lines.map((line) => {
-    const jiraMatch =
-      line.match(/^(?<indent>\s*-\s*)\(jira\s*=\s*(?<url>\S+)\s*\)\s*$/i);
+    // Любой отступ в начале (включая " - " или просто пробелы), затем (jira = URL)
+    const jiraMatch = line.match(
+      /^(?<indent>\s*(?:-\s*)?)\(jira\s*=\s*(?<url>[^)]+)\)\s*$/i,
+    );
     if (jiraMatch && jiraMatch.groups) {
       const { indent, url } = jiraMatch.groups;
-      const safeUrl = escapeHtml(url);
+      const trimmedUrl = url.trim();
+      const safeUrl = escapeHtml(trimmedUrl);
       return `${escapeHtml(indent)}<a href="${safeUrl}">(jira)</a>`;
     }
 
-    const figmaMatch =
-      line.match(/^(?<indent>\s*-\s*)\(figma\s*=\s*(?<url>\S+)\s*\)\s*$/i);
+    const figmaMatch = line.match(
+      /^(?<indent>\s*(?:-\s*)?)\(figma\s*=\s*(?<url>[^)]+)\)\s*$/i,
+    );
     if (figmaMatch && figmaMatch.groups) {
       const { indent, url } = figmaMatch.groups;
-      const safeUrl = escapeHtml(url);
+      const trimmedUrl = url.trim();
+      const safeUrl = escapeHtml(trimmedUrl);
       return `${escapeHtml(indent)}<a href="${safeUrl}">(figma)</a>`;
     }
 
-    // Остальные строки просто экранируем
     return escapeHtml(line);
   });
 

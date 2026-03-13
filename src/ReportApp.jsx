@@ -217,7 +217,7 @@ export default function ReportApp() {
     },
   ];
 
-  const baseTags = [];
+  const baseTags = [ "(jira = )", "(figma = )" ];
 
   const appendTagToActiveField = (tag) => {
     if (!activeField) return;
