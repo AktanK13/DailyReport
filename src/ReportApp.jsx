@@ -681,6 +681,16 @@ export default function ReportApp() {
           {/* Справа две маленькие кнопки */}
           <button
             onClick={handleCopy}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.12)";
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.3)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = copied
+                ? "linear-gradient(135deg, #00b09b, #00c853)"
+                : "rgba(255,255,255,0.06)";
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)";
+            }}
             style={{
               padding: "10px 12px",
               borderRadius: "14px",
@@ -701,6 +711,14 @@ export default function ReportApp() {
           <button
             type="button"
             onClick={handleSaveReportToHistory}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.12)";
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.3)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)";
+            }}
             style={{
               padding: "10px 12px",
               borderRadius: "14px",

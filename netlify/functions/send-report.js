@@ -1,6 +1,43 @@
 /* eslint-disable no-undef */
 /* eslint-env node */
 
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// Превращаем строки вида
+// "- (jira = https://...)" -> "- <a href="https://...">(jira)</a>"
+// "- (figma = https://...)" -> "- <a href="https://...">(figma)</a>"
+// Остальной текст просто HTML-экранируем
+function transformReportToHtml(text) {
+  const lines = text.split("\n");
+  const htmlLines = lines.map((line) => {
+    const jiraMatch =
+      line.match(/^(?<indent>\s*-\s*)\(jira\s*=\s*(?<url>\S+)\s*\)\s*$/i);
+    if (jiraMatch && jiraMatch.groups) {
+      const { indent, url } = jiraMatch.groups;
+      const safeUrl = escapeHtml(url);
+      return `${escapeHtml(indent)}<a href="${safeUrl}">(jira)</a>`;
+    }
+
+    const figmaMatch =
+      line.match(/^(?<indent>\s*-\s*)\(figma\s*=\s*(?<url>\S+)\s*\)\s*$/i);
+    if (figmaMatch && figmaMatch.groups) {
+      const { indent, url } = figmaMatch.groups;
+      const safeUrl = escapeHtml(url);
+      return `${escapeHtml(indent)}<a href="${safeUrl}">(figma)</a>`;
+    }
+
+    // Остальные строки просто экранируем
+    return escapeHtml(line);
+  });
+
+  return htmlLines.join("\n");
+}
+
 export const handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return {
@@ -29,18 +66,17 @@ export const handler = async (event) => {
       };
     }
 
-    const resp = await fetch(
-      `https://api.telegram.org/bot${token}/sendMessage`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text,
-          // parse_mode: "Markdown",
-        }),
-      },
-    );
+    const htmlText = transformReportToHtml(text);
+
+    const resp = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: htmlText,
+        parse_mode: "HTML",
+      }),
+    });
 
     const data = await resp.json();
 
