@@ -52,7 +52,6 @@ export default function ReportApp() {
         setDone(data.done || "");
         setTodo(data.todo || "");
         setProblems(data.problems || "");
-        // Если сохранённая дата из прошлого дня — начинаем с сегодняшней
         if (data.date && data.date !== todayStr()) {
           setReportDate(todayStr());
         } else {
