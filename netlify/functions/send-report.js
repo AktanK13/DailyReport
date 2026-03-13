@@ -8,31 +8,20 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;");
 }
 
-// Превращаем строки вида
-// " - (jira = https://...)" или "(jira = https://...)" -> " - <a href="...">(jira)</a>"
-// Аналогично для (figma = url). Остальной текст HTML-экранируем.
+// Любая строка вида " ( имя_тега = url ) " → кликабельная ссылка с текстом "( имя_тега )"
+// Имя тега — любое слово (jira, figma, что угодно). Ориентир — паттерн ( = ).
 function transformReportToHtml(text) {
   const lines = text.split("\n");
   const htmlLines = lines.map((line) => {
-    // Любой отступ в начале (включая " - " или просто пробелы), затем (jira = URL)
-    const jiraMatch = line.match(
-      /^(?<indent>\s*(?:-\s*)?)\(jira\s*=\s*(?<url>[^)]+)\)\s*$/i,
+    const match = line.match(
+      /^(?<indent>\s*(?:-\s*)?)\(\s*(?<tag>[^=]*?)\s*=\s*(?<url>[^)]+)\)\s*$/,
     );
-    if (jiraMatch && jiraMatch.groups) {
-      const { indent, url } = jiraMatch.groups;
-      const trimmedUrl = url.trim();
-      const safeUrl = escapeHtml(trimmedUrl);
-      return `${escapeHtml(indent)}<a href="${safeUrl}">(jira)</a>`;
-    }
-
-    const figmaMatch = line.match(
-      /^(?<indent>\s*(?:-\s*)?)\(figma\s*=\s*(?<url>[^)]+)\)\s*$/i,
-    );
-    if (figmaMatch && figmaMatch.groups) {
-      const { indent, url } = figmaMatch.groups;
-      const trimmedUrl = url.trim();
-      const safeUrl = escapeHtml(trimmedUrl);
-      return `${escapeHtml(indent)}<a href="${safeUrl}">(figma)</a>`;
+    if (match && match.groups) {
+      const { indent, tag, url } = match.groups;
+      const tagText = `(${tag.trim()})`;
+      const safeUrl = escapeHtml(url.trim());
+      const safeTag = escapeHtml(tagText);
+      return `${escapeHtml(indent)}<a href="${safeUrl}">${safeTag}</a>`;
     }
 
     return escapeHtml(line);
