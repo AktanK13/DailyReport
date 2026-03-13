@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const todayStr = () => {
   const d = new Date();
@@ -40,11 +40,14 @@ export default function ReportApp() {
   const [hiddenTags, setHiddenTags] = useState([]);
   const [copied, setCopied] = useState(false);
   const [cleared, setCleared] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendStatus, setSendStatus] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [lastSavedDate, setLastSavedDate] = useState(null);
   const [showRestoreBanner, setShowRestoreBanner] = useState(false);
   const [history, setHistory] = useState([]);
   const [selectedHistory, setSelectedHistory] = useState(null);
+  const textareasRef = useRef({});
 
   useEffect(() => {
     loadSaved().then((data) => {
@@ -92,6 +95,18 @@ export default function ReportApp() {
     });
   }, [done, todo, problems, reportDate, customTags, hiddenTags, loaded]);
 
+  // синхронизация высоты полей с содержимым при загрузке/восстановлении
+  useEffect(() => {
+    if (!loaded) return;
+    ["done", "todo", "problems"].forEach((id) => {
+      const el = textareasRef.current[id];
+      if (el) {
+        el.style.height = "auto";
+        el.style.height = `${el.scrollHeight}px`;
+      }
+    });
+  }, [loaded, done, todo, problems]);
+
   const generateReport = () => {
     return `/done
 #Отчет_${reportDate}
@@ -111,6 +126,37 @@ export default function ReportApp() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     });
+  };
+
+  const handleSendToTelegram = async () => {
+    if (sending) return;
+    setSending(true);
+    setSendStatus(null);
+    try {
+      const resp = await fetch("/.netlify/functions/send-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: generateReport() }),
+      });
+
+      if (!resp.ok) {
+        throw new Error(`HTTP ${resp.status}`);
+      }
+
+      const data = await resp.json().catch(() => ({}));
+      if (data && data.error && !data.ok) {
+        throw new Error("Telegram API error");
+      }
+
+      setSendStatus("ok");
+      setTimeout(() => setSendStatus(null), 3000);
+    } catch (e) {
+      console.error("Error sending to Telegram", e);
+      setSendStatus("error");
+      setTimeout(() => setSendStatus(null), 4000);
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleSaveReportToHistory = () => {
@@ -380,6 +426,13 @@ export default function ReportApp() {
                 }}
               >
                 <textarea
+                  ref={(el) => {
+                    if (el) {
+                      textareasRef.current[id] = el;
+                      el.style.height = "auto";
+                      el.style.height = `${el.scrollHeight}px`;
+                    }
+                  }}
                   value={value}
                   onChange={(e) => set(e.target.value)}
                   onFocus={(e) => {
@@ -588,45 +641,74 @@ export default function ReportApp() {
           </pre>
         </div>
 
-        {/* Copy & Save buttons */}
+        {/* Send, Copy & Save buttons */}
         <div
           style={{
             display: "flex",
             gap: "10px",
-            marginBottom: "10px",
+            marginBottom: "8px",
+            alignItems: "stretch",
           }}
         >
+          {/* Большая кнопка "В Telegram" */}
           <button
-            onClick={handleCopy}
+            type="button"
+            onClick={handleSendToTelegram}
+            disabled={sending}
             style={{
               flex: 1,
               padding: "14px",
               borderRadius: "14px",
               border: "none",
-              background: copied
-                ? "linear-gradient(135deg, #00b09b, #00c853)"
+              background: sending
+                ? "linear-gradient(135deg, #1e88e5, #1565c0)"
                 : "linear-gradient(135deg, #2AABEE, #229ED9)",
               color: "#fff",
               fontWeight: "700",
               fontSize: "16px",
-              cursor: "pointer",
-              transition: "all 0.3s",
+              cursor: sending ? "default" : "pointer",
               boxShadow: "0 4px 20px rgba(42,171,238,0.35)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              whiteSpace: "nowrap",
             }}
           >
-            {copied ? "✅ Скопировано!" : "📋 Скопировать отчёт"}
+            {sending ? "⏳ Отправка в Telegram..." : "✈️ Отправить в Telegram"}
+          </button>
+
+          {/* Справа две маленькие кнопки */}
+          <button
+            onClick={handleCopy}
+            style={{
+              padding: "10px 12px",
+              borderRadius: "14px",
+              border: "1px solid rgba(255,255,255,0.18)",
+              background: copied
+                ? "linear-gradient(135deg, #00b09b, #00c853)"
+                : "rgba(255,255,255,0.06)",
+              color: "rgba(255,255,255,0.95)",
+              fontWeight: "600",
+              fontSize: "13px",
+              cursor: "pointer",
+              transition: "all 0.3s",
+              minWidth: "120px",
+            }}
+          >
+            {copied ? "✅ Скопировано" : "📋 Скопировать"}
           </button>
           <button
             type="button"
             onClick={handleSaveReportToHistory}
             style={{
-              padding: "14px 18px",
+              padding: "10px 12px",
               borderRadius: "14px",
               border: "1px solid rgba(255,255,255,0.18)",
               background: "rgba(255,255,255,0.06)",
               color: "rgba(255,255,255,0.85)",
               fontWeight: "600",
-              fontSize: "14px",
+              fontSize: "13px",
               cursor: "pointer",
               whiteSpace: "nowrap",
               display: "flex",
@@ -643,11 +725,35 @@ export default function ReportApp() {
             textAlign: "center",
             color: "rgba(255,255,255,0.2)",
             fontSize: "12px",
-            marginBottom: "10px",
+            marginBottom: "4px",
           }}
         >
           Поля сохраняются автоматически · Вставь в Telegram Ctrl+V
         </div>
+        {sendStatus === "ok" && (
+          <div
+            style={{
+              textAlign: "center",
+              color: "rgba(0, 230, 118, 0.9)",
+              fontSize: "12px",
+              marginBottom: "8px",
+            }}
+          >
+            Отчёт отправлен в Telegram
+          </div>
+        )}
+        {sendStatus === "error" && (
+          <div
+            style={{
+              textAlign: "center",
+              color: "rgba(255, 82, 82, 0.9)",
+              fontSize: "12px",
+              marginBottom: "8px",
+            }}
+          >
+            Не удалось отправить в Telegram
+          </div>
+        )}
 
         {/* History */}
         <div
