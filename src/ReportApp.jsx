@@ -48,6 +48,9 @@ export default function ReportApp() {
   const [history, setHistory] = useState([]);
   const [selectedHistory, setSelectedHistory] = useState(null);
   const textareasRef = useRef({});
+  const [showAddTagModal, setShowAddTagModal] = useState(false);
+  const [addTagInputValue, setAddTagInputValue] = useState("");
+  const addTagInputRef = useRef(null);
 
   useEffect(() => {
     loadSaved().then((data) => {
@@ -214,26 +217,78 @@ export default function ReportApp() {
     },
   ];
 
-  const baseTags = ["(jira)", "(figma)"];
+  const baseTags = [];
 
   const appendTagToActiveField = (tag) => {
     if (!activeField) return;
-    const append = (prev) => (prev ? `${prev} ${tag}` : tag);
-    if (activeField === "done") setDone(append);
-    if (activeField === "todo") setTodo(append);
-    if (activeField === "problems") setProblems(append);
+    const textarea = textareasRef.current[activeField];
+    if (!textarea) return;
+
+    const currentValue = textarea.value ?? "";
+    const start = textarea.selectionStart ?? currentValue.length;
+    const end = textarea.selectionEnd ?? currentValue.length;
+
+    const before = currentValue.slice(0, start);
+    const after = currentValue.slice(end);
+
+    const needsSpace = before.length > 0 && !/\s$/.test(before) ? " " : "";
+    const insert = `${needsSpace}${tag}`;
+
+    const newValue = before + insert + after;
+
+    if (activeField === "done") setDone(newValue);
+    if (activeField === "todo") setTodo(newValue);
+    if (activeField === "problems") setProblems(newValue);
+
+    const newPos = before.length + insert.length;
+    setTimeout(() => {
+      const el = textareasRef.current[activeField];
+      if (!el) return;
+      el.focus();
+      try {
+        el.setSelectionRange(newPos, newPos);
+      } catch {
+        // ignore
+      }
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    }, 0);
   };
 
-  const handleAddCustomTag = () => {
-    const name = window.prompt("Введи название тега (без обязательной #):");
-    if (!name) return;
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    const tag = trimmed;
+  const ADD_TAG_PLACEHOLDER = "(имя = )";
+  const ADD_TAG_SELECT_START = 1;
+  const ADD_TAG_SELECT_END = 4; // выделяем "имя"
+
+  const openAddTagModal = () => {
+    setAddTagInputValue(ADD_TAG_PLACEHOLDER);
+    setShowAddTagModal(true);
+  };
+
+  useEffect(() => {
+    if (!showAddTagModal || !addTagInputRef.current) return;
+    const el = addTagInputRef.current;
+    el.focus();
+    el.setSelectionRange(ADD_TAG_SELECT_START, ADD_TAG_SELECT_END);
+  }, [showAddTagModal]);
+
+  const closeAddTagModal = () => {
+    setShowAddTagModal(false);
+    setAddTagInputValue("");
+  };
+
+  const submitAddTag = () => {
+    const match = addTagInputValue.match(/\(([^=]*)=\s*\)/);
+    const name = match ? match[1].trim() : addTagInputValue.replace(/^\(|=\s*\)$/g, "").trim();
+    if (!name) {
+      closeAddTagModal();
+      return;
+    }
+    const tag = `(${name} = )`;
     setCustomTags((prev) => {
       if (prev.includes(tag) || baseTags.includes(tag)) return prev;
       return [...prev, tag];
     });
+    closeAddTagModal();
   };
 
   return (
@@ -585,7 +640,7 @@ export default function ReportApp() {
             ))}
           <button
             type="button"
-            onClick={handleAddCustomTag}
+            onClick={openAddTagModal}
             style={{
               borderRadius: "999px",
               border: "1px dashed rgba(255,255,255,0.3)",
@@ -948,6 +1003,100 @@ export default function ReportApp() {
           )}
         </div>
       </div>
+
+      {/* Модальное окно добавления тега */}
+      {showAddTagModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10000,
+          }}
+          onClick={closeAddTagModal}
+        >
+          <div
+            style={{
+              background: "rgba(20,25,40,0.98)",
+              borderRadius: "16px",
+              border: "1px solid rgba(255,255,255,0.12)",
+              padding: "20px 24px",
+              minWidth: "320px",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.5)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                fontSize: "14px",
+                fontWeight: 600,
+                color: "rgba(255,255,255,0.9)",
+                marginBottom: "12px",
+              }}
+            >
+              Новый тег
+            </div>
+            <input
+              ref={addTagInputRef}
+              type="text"
+              value={addTagInputValue}
+              onChange={(e) => setAddTagInputValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitAddTag();
+                if (e.key === "Escape") closeAddTagModal();
+              }}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "10px 12px",
+                borderRadius: "10px",
+                border: "1px solid rgba(255,255,255,0.2)",
+                background: "rgba(255,255,255,0.06)",
+                color: "#fff",
+                fontSize: "14px",
+                outline: "none",
+                marginBottom: "14px",
+              }}
+            />
+            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={closeAddTagModal}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  background: "rgba(255,255,255,0.06)",
+                  color: "rgba(255,255,255,0.85)",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                }}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={submitAddTag}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: "10px",
+                  border: "none",
+                  background: "linear-gradient(135deg, #2AABEE, #229ED9)",
+                  color: "#fff",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Добавить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
