@@ -149,6 +149,17 @@ async function saveCurrent(data) {
   }
 }
 
+function normalizeIsoDate(dateStr) {
+  if (!dateStr || typeof dateStr !== "string") return dateStr;
+  // формат DD.MM.YYYY → YYYY-MM-DD
+  const dotMatch = dateStr.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (dotMatch) {
+    const [, dd, mm, yyyy] = dotMatch;
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  return dateStr;
+}
+
 export default function ReportApp() {
   const [profileName, setProfileName] = useState("");
   const [profileAvatar, setProfileAvatar] = useState("");
@@ -194,9 +205,13 @@ export default function ReportApp() {
       try {
         const rawHistory = localStorage.getItem(HISTORY_KEY);
         const parsed = rawHistory ? JSON.parse(rawHistory) : [];
-        setHistory(parsed);
-        if (parsed && parsed.length > 0) {
-          setSelectedHistory(parsed[0]);
+        const normalized = (parsed || []).map((h) => ({
+          ...h,
+          reportDate: normalizeIsoDate(h.reportDate),
+        }));
+        setHistory(normalized);
+        if (normalized && normalized.length > 0) {
+          setSelectedHistory(normalized[0]);
         }
       } catch {
         setHistory([]);
