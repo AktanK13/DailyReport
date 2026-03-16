@@ -84,6 +84,54 @@ function transformReportToHtml(text) {
   return htmlLines.join("\n");
 }
 
+function parseReportText(text) {
+  if (!text) {
+    return {
+      reportDate: todayStr(),
+      done: "",
+      todo: "",
+      problems: "",
+    };
+  }
+
+  const lines = text.split("\n");
+  let reportDateParsed = todayStr();
+
+  const dateLine = lines.find((l) => l.startsWith("#Отчет_"));
+  if (dateLine) {
+    reportDateParsed = dateLine.replace("#Отчет_", "").trim() || todayStr();
+  }
+
+  const findIndex = (label) => lines.findIndex((l) => l.startsWith(label));
+
+  const idxDone = findIndex("- Что делал ?");
+  const idxTodo = findIndex("- Что буду делать ?");
+  const idxProblems = findIndex("- Какие проблемы?");
+
+  const sliceSection = (startIdx, endIdx) => {
+    if (startIdx === -1) return "";
+    const from = startIdx + 1;
+    const to = endIdx === -1 ? lines.length : endIdx;
+    const block = lines.slice(from, to).join("\n");
+    return block.replace(/^\s+/gm, "").trim();
+  };
+
+  let done = sliceSection(idxDone, idxTodo);
+  let todo = sliceSection(idxTodo, idxProblems);
+  let problems = sliceSection(idxProblems, -1);
+
+  if (done === "(не указано)") done = "";
+  if (todo === "(не указано)") todo = "";
+  if (problems === "нет проблем") problems = "";
+
+  return {
+    reportDate: reportDateParsed,
+    done,
+    todo,
+    problems,
+  };
+}
+
 async function loadSaved() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -116,12 +164,11 @@ export default function ReportApp() {
   const [sending, setSending] = useState(false);
   const [sendStatus, setSendStatus] = useState(null);
   const [loaded, setLoaded] = useState(false);
-  const [lastSavedDate, setLastSavedDate] = useState(null);
-  const [showRestoreBanner, setShowRestoreBanner] = useState(false);
   const [history, setHistory] = useState([]);
   const [selectedHistory, setSelectedHistory] = useState(null);
   const textareasRef = useRef({});
   const avatarFileInputRef = useRef(null);
+  const settingsFileInputRef = useRef(null);
   const [showAddTagModal, setShowAddTagModal] = useState(false);
   const [addTagInputValue, setAddTagInputValue] = useState("");
   const addTagInputRef = useRef(null);
@@ -140,10 +187,6 @@ export default function ReportApp() {
           setReportDate(data.reportDate || todayStr());
         }
         setCustomTags(data.customTags || []);
-        setLastSavedDate(data.date || null);
-        if (data.date && data.date !== todayStr()) {
-          setShowRestoreBanner(true);
-        }
       }
 
       try {
@@ -286,14 +329,72 @@ export default function ReportApp() {
     }
   };
 
+  const handleImportHistoryToCurrent = () => {
+    if (!selectedHistory) return;
+    const parsed = parseReportText(selectedHistory.text);
+    setReportDate(parsed.reportDate);
+    setDone(parsed.done);
+    setTodo(parsed.todo);
+    setProblems(parsed.problems);
+  };
+
   const handleClear = () => {
     setDone("");
     setTodo("");
     setProblems("");
     setReportDate(todayStr());
     setCleared(true);
-    setShowRestoreBanner(false);
     setTimeout(() => setCleared(false), 2000);
+  };
+
+  const handleSettingsFileChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result || "{}");
+        if (data.profileName !== undefined) setProfileName(data.profileName);
+        if (data.profileAvatar !== undefined)
+          setProfileAvatar(data.profileAvatar);
+        if (data.done !== undefined) setDone(data.done);
+        if (data.todo !== undefined) setTodo(data.todo);
+        if (data.problems !== undefined) setProblems(data.problems);
+        if (data.reportDate) setReportDate(data.reportDate);
+        if (Array.isArray(data.customTags)) setCustomTags(data.customTags);
+        if (Array.isArray(data.hiddenTags)) setHiddenTags(data.hiddenTags);
+        if (Array.isArray(data.history)) {
+          setHistory(data.history);
+          try {
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(data.history));
+          } catch (err) {
+            console.error("Error saving imported history", err);
+          }
+          if (data.history.length > 0) {
+            setSelectedHistory(data.history[0]);
+          }
+        }
+        // Сохраняем текущие поля, чтобы восстановление работало как обычно
+        saveCurrent({
+          profileName: data.profileName ?? profileName,
+          profileAvatar: data.profileAvatar ?? profileAvatar,
+          done: data.done ?? done,
+          todo: data.todo ?? todo,
+          problems: data.problems ?? problems,
+          reportDate: data.reportDate ?? reportDate,
+          customTags: data.customTags ?? customTags,
+          hiddenTags: data.hiddenTags ?? hiddenTags,
+          date: todayStr(),
+        });
+      } catch (err) {
+        console.error("Error importing settings", err);
+      } finally {
+        // сброс input, чтобы одно и то же имя файла можно было выбрать снова
+        e.target.value = "";
+      }
+    };
+    reader.readAsText(file, "utf-8");
   };
 
   const fields = [
@@ -638,46 +739,7 @@ export default function ReportApp() {
           </div>
 
           {/* Banner: loaded from previous day */}
-          {showRestoreBanner && (
-            <div
-              style={{
-                background: "rgba(42,171,238,0.12)",
-                border: "1px solid rgba(42,171,238,0.3)",
-                borderRadius: "12px",
-                padding: "10px 14px",
-                marginBottom: "18px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "10px",
-              }}
-            >
-              <div
-                style={{ color: "rgba(255,255,255,0.75)", fontSize: "13px" }}
-              >
-                💾 Загружены поля с{" "}
-                <span style={{ color: "#2AABEE", fontWeight: "600" }}>
-                  {lastSavedDate}
-                </span>{" "}
-                — отредактируй если нужно
-              </div>
-              <button
-                onClick={() => setShowRestoreBanner(false)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "rgba(255,255,255,0.3)",
-                  cursor: "pointer",
-                  fontSize: "18px",
-                  lineHeight: 1,
-                  padding: "0 2px",
-                }}
-              >
-                ×
-              </button>
-            </div>
-          )}
-
+          
           {/* Fields */}
           {fields.map(({ id, label, value, set, placeholder }) => {
             const linesCount = value ? value.split("\n").length : 0;
@@ -1048,193 +1110,263 @@ export default function ReportApp() {
           {/* History */}
           <div
             style={{
-              marginTop: "12px",
-              paddingTop: "12px",
-              borderTop: "1px solid rgba(255,255,255,0.12)",
+              marginTop: "20px",
+              paddingTop: "18px",
+              borderTop: "1px solid rgba(255,255,255,0.15)",
             }}
           >
             <div
               style={{
-                fontSize: "13px",
-                color: "rgba(255,255,255,0.8)",
-                marginBottom: "4px",
-                fontWeight: 600,
+                fontSize: "14px",
+                color: "rgba(255,255,255,0.95)",
+                marginBottom: "2px",
+                fontWeight: 700,
+                letterSpacing: "0.3px",
               }}
             >
-              История отчётов
+              📋 История отчётов
             </div>
             <div
               style={{
-                fontSize: "11px",
-                color: "rgba(255,255,255,0.45)",
-                marginBottom: "8px",
+                fontSize: "12px",
+                color: "rgba(255,255,255,0.5)",
+                marginBottom: "14px",
+                lineHeight: 1.4,
               }}
             >
-              Нажми на дату, чтобы посмотреть и скопировать сохранённый отчёт.
+              Выбери дату — откроется сохранённый отчёт. Можно скопировать или удалить.
             </div>
             {history && history.length > 0 ? (
-              <>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "14px",
+                  alignItems: "stretch",
+                }}
+              >
                 <div
                   style={{
+                    width: "160px",
+                    flexShrink: 0,
                     display: "flex",
-                    flexWrap: "wrap",
+                    flexDirection: "column",
                     gap: "6px",
-                    marginBottom: "10px",
+                    maxHeight: "240px",
+                    overflowY: "auto",
+                    paddingRight: "4px",
                   }}
                 >
-                  {history.map((item) => (
-                    <button
-                      key={item.reportDate}
-                      type="button"
-                      onClick={() => setSelectedHistory(item)}
-                      style={{
-                        borderRadius: "999px",
-                        border:
-                          selectedHistory &&
-                          selectedHistory.reportDate === item.reportDate
-                            ? "1px solid rgba(42,171,238,0.9)"
-                            : "1px solid rgba(255,255,255,0.18)",
-                        background:
-                          selectedHistory &&
-                          selectedHistory.reportDate === item.reportDate
-                            ? "rgba(42,171,238,0.3)"
-                            : "rgba(255,255,255,0.06)",
-                        color: "rgba(255,255,255,0.9)",
-                        fontSize: "11px",
-                        padding: "4px 12px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {item.reportDate}
-                    </button>
-                  ))}
+                  {history.map((item) => {
+                    const isSelected =
+                      selectedHistory &&
+                      selectedHistory.reportDate === item.reportDate;
+                    return (
+                      <button
+                        key={item.reportDate}
+                        type="button"
+                        onClick={() => setSelectedHistory(item)}
+                        style={{
+                          width: "100%",
+                          textAlign: "left",
+                          borderRadius: "12px",
+                          border: isSelected
+                            ? "1px solid rgba(42,171,238,0.7)"
+                            : "1px solid rgba(255,255,255,0.12)",
+                          background: isSelected
+                            ? "rgba(42,171,238,0.18)"
+                            : "rgba(255,255,255,0.04)",
+                          color: "rgba(255,255,255,0.95)",
+                          fontSize: "13px",
+                          padding: "8px 12px",
+                          cursor: "pointer",
+                          transition: "background 0.2s, border-color 0.2s",
+                          fontWeight: isSelected ? 600 : 500,
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.background =
+                              "rgba(255,255,255,0.08)";
+                            e.currentTarget.style.borderColor =
+                              "rgba(255,255,255,0.2)";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.background =
+                              "rgba(255,255,255,0.04)";
+                            e.currentTarget.style.borderColor =
+                              "rgba(255,255,255,0.12)";
+                          }
+                        }}
+                      >
+                        📅 {item.reportDate}
+                      </button>
+                    );
+                  })}
                 </div>
-                {selectedHistory && (
-                  <div
-                    style={{
-                      background: "rgba(0,0,0,0.4)",
-                      borderRadius: "12px",
-                      padding: "12px 14px",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                    }}
-                  >
+                <div
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  {selectedHistory && (
                     <div
                       style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: "8px",
-                        fontSize: "12px",
-                        color: "rgba(255,255,255,0.8)",
-                        fontWeight: 500,
+                        background: "rgba(0,0,0,0.35)",
+                        borderRadius: "14px",
+                        padding: "16px 18px",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
                       }}
                     >
-                      <span>Отчёт от {selectedHistory.reportDate}</span>
                       <div
                         style={{
                           display: "flex",
-                          gap: "6px",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: "12px",
+                          paddingBottom: "10px",
+                          borderBottom: "1px solid rgba(255,255,255,0.08)",
                         }}
                       >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            try {
-                              navigator.clipboard.writeText(
-                                selectedHistory.text,
-                              );
-                            } catch (e) {
-                              console.error(
-                                "Error copying selected history entry",
-                                e,
-                              );
-                            }
-                          }}
+                        <span
                           style={{
-                            borderRadius: "999px",
-                            border: "1px solid rgba(255,255,255,0.25)",
-                            background: "rgba(255,255,255,0.08)",
-                            color: "rgba(255,255,255,0.95)",
-                            fontSize: "11px",
-                            padding: "4px 10px",
-                            cursor: "pointer",
+                            fontSize: "13px",
+                            color: "rgba(255,255,255,0.9)",
+                            fontWeight: 600,
                           }}
                         >
-                          Копировать
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updated = (history || []).filter(
-                              (h) =>
-                                h.reportDate !== selectedHistory.reportDate,
-                            );
-                            setHistory(updated);
-                            try {
-                              localStorage.setItem(
-                                HISTORY_KEY,
-                                JSON.stringify(updated),
-                              );
-                            } catch (e) {
-                              console.error("Error updating history store", e);
-                            }
-                            if (
-                              updated.length > 0 &&
-                              selectedHistory &&
-                              updated.some(
+                          Отчёт от {selectedHistory.reportDate}
+                        </span>
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              try {
+                                navigator.clipboard.writeText(
+                                  selectedHistory.text,
+                                );
+                              } catch (e) {
+                                console.error(
+                                  "Error copying selected history entry",
+                                  e,
+                                );
+                              }
+                            }}
+                            style={{
+                              borderRadius: "10px",
+                              border: "1px solid rgba(255,255,255,0.2)",
+                              background: "rgba(255,255,255,0.1)",
+                              color: "rgba(255,255,255,0.95)",
+                              fontSize: "12px",
+                              padding: "6px 12px",
+                              cursor: "pointer",
+                              fontWeight: 500,
+                            }}
+                          >
+                            📋 Копировать
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleImportHistoryToCurrent}
+                            style={{
+                              borderRadius: "10px",
+                              border: "1px solid rgba(42,171,238,0.5)",
+                              background: "rgba(42,171,238,0.12)",
+                              color: "#2AABEE",
+                              fontSize: "12px",
+                              padding: "6px 12px",
+                              cursor: "pointer",
+                              fontWeight: 500,
+                            }}
+                          >
+                            ⬅ Импорт в текущий
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = (history || []).filter(
                                 (h) =>
-                                  h.reportDate === selectedHistory.reportDate,
-                              )
-                            ) {
-                              setSelectedHistory(updated[0]);
-                            } else {
-                              setSelectedHistory(updated[0] || null);
-                            }
-                          }}
-                          style={{
-                            borderRadius: "999px",
-                            border: "1px solid rgba(255,80,80,0.6)",
-                            background: "rgba(255,80,80,0.12)",
-                            color: "#ff6b6b",
-                            fontSize: "11px",
-                            padding: "4px 10px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Удалить
-                        </button>
+                                  h.reportDate !== selectedHistory.reportDate,
+                              );
+                              setHistory(updated);
+                              try {
+                                localStorage.setItem(
+                                  HISTORY_KEY,
+                                  JSON.stringify(updated),
+                                );
+                              } catch (e) {
+                                console.error(
+                                  "Error updating history store",
+                                  e,
+                                );
+                              }
+                              if (
+                                updated.length > 0 &&
+                                selectedHistory &&
+                                updated.some(
+                                  (h) =>
+                                    h.reportDate === selectedHistory.reportDate,
+                                )
+                              ) {
+                                setSelectedHistory(updated[0]);
+                              } else {
+                                setSelectedHistory(updated[0] || null);
+                              }
+                            }}
+                            style={{
+                              borderRadius: "10px",
+                              border: "1px solid rgba(255,80,80,0.5)",
+                              background: "rgba(255,80,80,0.12)",
+                              color: "#ff6b6b",
+                              fontSize: "12px",
+                              padding: "6px 12px",
+                              cursor: "pointer",
+                              fontWeight: 500,
+                            }}
+                          >
+                            🗑 Удалить
+                          </button>
+                        </div>
                       </div>
+                      <pre
+                        style={{
+                          margin: 0,
+                          whiteSpace: "pre-wrap",
+                          fontSize: "13px",
+                          color: "rgba(255,255,255,0.9)",
+                          fontFamily: "'SF Mono', 'Consolas', monospace",
+                          lineHeight: "1.6",
+                          maxHeight: "220px",
+                          overflowY: "auto",
+                          paddingRight: "4px",
+                        }}
+                      >
+                        {selectedHistory.text}
+                      </pre>
                     </div>
-                    <pre
-                      style={{
-                        margin: 0,
-                        whiteSpace: "pre-wrap",
-                        fontSize: "12px",
-                        color: "rgba(255,255,255,0.9)",
-                        fontFamily: "monospace",
-                        lineHeight: "1.5",
-                        maxHeight: "200px",
-                        overflowY: "auto",
-                      }}
-                    >
-                      {selectedHistory.text}
-                    </pre>
-                  </div>
-                )}
-              </>
+                  )}
+                </div>
+              </div>
             ) : (
               <div
                 style={{
-                  fontSize: "11px",
-                  color: "rgba(255,255,255,0.3)",
+                  fontSize: "13px",
+                  color: "rgba(255,255,255,0.4)",
+                  padding: "20px",
+                  textAlign: "center",
+                  background: "rgba(255,255,255,0.03)",
+                  borderRadius: "12px",
+                  border: "1px dashed rgba(255,255,255,0.1)",
                 }}
               >
-                Пока нет сохранённых отчётов
+                Пока нет сохранённых отчётов. Нажми «Сохранить отчёт», чтобы добавить.
               </div>
             )}
           </div>
-        </div>
 
+        </div>
         {/* Модальное окно добавления тега */}
         {showAddTagModal && (
           <div
@@ -1335,54 +1467,90 @@ export default function ReportApp() {
           </div>
         )}
 
-        {/* Карточка обратного отсчёта до ЗП / аванса */}
         <div
           style={{
-            background: "rgba(0,0,0,0.3)",
-            borderRadius: "20px",
-            border: "1px solid rgba(255,255,255,0.12)",
-            padding: "18px 18px",
-            width: "260px",
-            boxShadow: "0 18px 40px rgba(0,0,0,0.5)",
             display: "flex",
-            maxHeight: "180px",
             flexDirection: "column",
-            gap: "10px",
+            gap: "12px",
+            width: "260px",
+            flexShrink: 0,
           }}
         >
           {(() => {
-            const now = new Date();
-            const salary = getNextSalaryDate(now);
-            const advance = getNextAdvanceDate(now);
+          const now = new Date();
+          const salary = getNextSalaryDate(now);
+          const advance = getNextAdvanceDate(now);
 
-            const daysDiff = (target) =>
-              Math.ceil(
-                (target.setHours(0, 0, 0, 0) -
-                  new Date(
-                    now.getFullYear(),
-                    now.getMonth(),
-                    now.getDate(),
-                  ).setHours(0, 0, 0, 0)) /
-                  (1000 * 60 * 60 * 24),
-              );
+          const daysDiff = (target) =>
+            Math.ceil(
+              (target.setHours(0, 0, 0, 0) -
+                new Date(
+                  now.getFullYear(),
+                  now.getMonth(),
+                  now.getDate(),
+                ).setHours(0, 0, 0, 0)) /
+                (1000 * 60 * 60 * 24),
+            );
 
-            const salaryDays = daysDiff(new Date(salary));
-            const advanceDays = daysDiff(new Date(advance));
+          const salaryDays = daysDiff(new Date(salary));
+          const advanceDays = daysDiff(new Date(advance));
 
-            const fmt = (d) =>
-              `${String(d.getDate()).padStart(2, "0")}.${String(
-                d.getMonth() + 1,
-              ).padStart(2, "0")}.${d.getFullYear()}`;
+          const fmt = (d) =>
+            `${String(d.getDate()).padStart(2, "0")}.${String(
+              d.getMonth() + 1,
+            ).padStart(2, "0")}.${d.getFullYear()}`;
 
-            const daysText = (n) =>
-              n === 0
-                ? "сегодня"
-                : n === 1
-                  ? "через 1 день"
-                  : `через ${n} дней`;
+          const daysText = (n) =>
+            n === 0
+              ? "сегодня"
+              : n === 1
+                ? "через 1 день"
+                : `через ${n} дней`;
 
-            return (
-              <>
+          // Стата по отчётам за месяц
+          const historyDates = new Set(
+            (history || []).map((h) => h.reportDate).filter(Boolean),
+          );
+          const today = new Date();
+          const ym = `${today.getFullYear()}-${String(
+            today.getMonth() + 1,
+          ).padStart(2, "0")}`;
+          const monthCount = (history || []).filter(
+            (h) => h.reportDate && h.reportDate.startsWith(ym),
+          ).length;
+
+          let streak = 0;
+          for (;;) {
+            const d = new Date(
+              today.getFullYear(),
+              today.getMonth(),
+              today.getDate() - streak,
+            );
+            const iso = d.toISOString().slice(0, 10);
+            if (historyDates.has(iso)) {
+              streak += 1;
+            } else {
+              break;
+            }
+          }
+
+          return (
+            <>
+              {/* Карточка обратного отсчёта до ЗП / аванса */}
+              <div
+                style={{
+                  background: "rgba(0,0,0,0.3)",
+                  borderRadius: "20px",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  padding: "18px 18px",
+                  width: "260px",
+                  boxShadow: "0 18px 40px rgba(0,0,0,0.5)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                  marginBottom: "12px",
+                }}
+              >
                 <div
                   style={{
                     fontSize: "13px",
@@ -1416,7 +1584,7 @@ export default function ReportApp() {
                         color: "rgba(255,255,255,0.8)",
                       }}
                     >
-                      💰 Зарплата
+                      💰 Аванс
                     </span>
                     <span
                       style={{
@@ -1462,7 +1630,7 @@ export default function ReportApp() {
                         color: "rgba(255,255,255,0.75)",
                       }}
                     >
-                      💵 Аванс
+                      💵 Зарплата
                     </span>
                     <span
                       style={{
@@ -1483,9 +1651,165 @@ export default function ReportApp() {
                     {daysText(advanceDays)}
                   </div>
                 </div>
-              </>
-            );
-          })()}
+              </div>
+
+              {/* Стата за месяц */}
+              <div
+                style={{
+                  background: "rgba(0,0,0,0.3)",
+                  borderRadius: "20px",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  padding: "14px 16px",
+                  width: "260px",
+                  boxShadow: "0 14px 32px rgba(0,0,0,0.45)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "6px",
+                  marginBottom: "12px",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "12px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.4px",
+                    color: "rgba(255,255,255,0.65)",
+                    marginBottom: "4px",
+                  }}
+                >
+                  Стата за месяц
+                </div>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: "rgba(255,255,255,0.78)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "4px",
+                  }}
+                >
+                  <div>
+                    📆 Отчётов в этом месяце:{" "}
+                    <span style={{ fontWeight: 600 }}>{monthCount}</span>
+                  </div>
+                  <div>
+                    🔥 Дней подряд с отчётами:{" "}
+                    <span style={{ fontWeight: 600 }}>{streak}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Экспорт / импорт настроек */}
+              <div
+                style={{
+                  background: "rgba(0,0,0,0.3)",
+                  borderRadius: "20px",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  padding: "12px 14px",
+                  width: "260px",
+                  boxShadow: "0 10px 24px rgba(0,0,0,0.4)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px",
+                  fontSize: "11px",
+                }}
+              >
+                <div
+                  style={{
+                    color: "rgba(255,255,255,0.7)",
+                    marginBottom: "2px",
+                  }}
+                >
+                  Экспорт / импорт настроек
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "6px",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const payload = {
+                        profileName,
+                        profileAvatar,
+                        customTags,
+                        hiddenTags,
+                        done,
+                        todo,
+                        problems,
+                        reportDate,
+                        history,
+                      };
+                      try {
+                        const blob = new Blob(
+                          [JSON.stringify(payload, null, 2)],
+                          {
+                            type: "application/json",
+                          },
+                        );
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = "daily-report-settings.json";
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      } catch (e) {
+                        console.error("Error exporting settings", e);
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      borderRadius: "999px",
+                      border: "1px solid rgba(255,255,255,0.2)",
+                      background: "rgba(255,255,255,0.05)",
+                      color: "rgba(255,255,255,0.9)",
+                      padding: "6px 8px",
+                      cursor: "pointer",
+                      fontSize: "11px",
+                    }}
+                    title="Экспортирует профиль, теги, историю и текущие поля в JSON‑файл"
+                  >
+                    ⬆️ Экспорт
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (settingsFileInputRef.current) {
+                        settingsFileInputRef.current.click();
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      borderRadius: "999px",
+                      border: "1px solid rgba(255,255,255,0.2)",
+                      background: "rgba(255,255,255,0.05)",
+                      color: "rgba(255,255,255,0.9)",
+                      padding: "6px 8px",
+                      cursor: "pointer",
+                      fontSize: "11px",
+                    }}
+                    title="Импортирует профиль, теги, историю и текущие поля из JSON‑файла"
+                  >
+                    ⬇️ Импорт
+                  </button>
+                </div>
+              </div>
+
+              <input
+                ref={settingsFileInputRef}
+                type="file"
+                accept="application/json"
+                style={{ display: "none" }}
+                onChange={handleSettingsFileChange}
+              />
+            </>
+          );
+        })()}
         </div>
       </div>
     </div>
