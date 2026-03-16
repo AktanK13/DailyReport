@@ -166,6 +166,8 @@ export default function ReportApp() {
   const [loaded, setLoaded] = useState(false);
   const [history, setHistory] = useState([]);
   const [selectedHistory, setSelectedHistory] = useState(null);
+  const [historyCopied, setHistoryCopied] = useState(false);
+  const [showDeleteHistoryModal, setShowDeleteHistoryModal] = useState(false);
   const textareasRef = useRef({});
   const avatarFileInputRef = useRef(null);
   const settingsFileInputRef = useRef(null);
@@ -993,30 +995,23 @@ export default function ReportApp() {
           >
             {/* Большая кнопка \"Скопировать\" */}
             <button
+              type="button"
               onClick={handleCopy}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255,255,255,0.12)";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.3)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = copied
-                  ? "linear-gradient(135deg, #00b09b, #00c853)"
-                  : "rgba(255,255,255,0.06)";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)";
-              }}
               style={{
                 flex: 1,
                 padding: "14px",
                 borderRadius: "14px",
-                border: "1px solid rgba(255,255,255,0.18)",
+                border: copied
+                  ? "1px solid rgba(80,200,120,0.7)"
+                  : "1px solid rgba(255,255,255,0.18)",
                 background: copied
-                  ? "linear-gradient(135deg, #00b09b, #00c853)"
+                  ? "rgba(80,200,120,0.25)"
                   : "rgba(255,255,255,0.06)",
-                color: "#fff",
+                color: copied ? "rgba(230,255,235,0.95)" : "#fff",
                 fontWeight: "700",
                 fontSize: "16px",
                 cursor: "pointer",
-                transition: "all 0.3s",
+                transition: "all 0.2s",
                 boxShadow: "0 4px 20px rgba(42,171,238,0.25)",
                 display: "flex",
                 alignItems: "center",
@@ -1025,7 +1020,7 @@ export default function ReportApp() {
                 whiteSpace: "nowrap",
               }}
             >
-              {copied ? "✅ Скопировано" : "📋 Скопировать отчёт"}
+              {copied ? "✓ Скопировано" : "📋 Скопировать отчёт"}
             </button>
 
             {/* Справа две маленькие кнопки */}
@@ -1247,6 +1242,8 @@ export default function ReportApp() {
                                 navigator.clipboard.writeText(
                                   selectedHistory.text,
                                 );
+                                setHistoryCopied(true);
+                                setTimeout(() => setHistoryCopied(false), 1500);
                               } catch (e) {
                                 console.error(
                                   "Error copying selected history entry",
@@ -1256,16 +1253,22 @@ export default function ReportApp() {
                             }}
                             style={{
                               borderRadius: "10px",
-                              border: "1px solid rgba(255,255,255,0.2)",
-                              background: "rgba(255,255,255,0.1)",
-                              color: "rgba(255,255,255,0.95)",
+                              border: historyCopied
+                                ? "1px solid rgba(80,200,120,0.7)"
+                                : "1px solid rgba(255,255,255,0.2)",
+                              background: historyCopied
+                                ? "rgba(80,200,120,0.25)"
+                                : "rgba(255,255,255,0.1)",
+                              color: historyCopied
+                                ? "rgba(230,255,235,0.95)"
+                                : "rgba(255,255,255,0.95)",
                               fontSize: "12px",
                               padding: "6px 12px",
                               cursor: "pointer",
                               fontWeight: 500,
                             }}
                           >
-                            📋 Копировать
+                            {historyCopied ? "✓ Скопировано" : "📋 Копировать"}
                           </button>
                           <button
                             type="button"
@@ -1286,34 +1289,7 @@ export default function ReportApp() {
                           <button
                             type="button"
                             onClick={() => {
-                              const updated = (history || []).filter(
-                                (h) =>
-                                  h.reportDate !== selectedHistory.reportDate,
-                              );
-                              setHistory(updated);
-                              try {
-                                localStorage.setItem(
-                                  HISTORY_KEY,
-                                  JSON.stringify(updated),
-                                );
-                              } catch (e) {
-                                console.error(
-                                  "Error updating history store",
-                                  e,
-                                );
-                              }
-                              if (
-                                updated.length > 0 &&
-                                selectedHistory &&
-                                updated.some(
-                                  (h) =>
-                                    h.reportDate === selectedHistory.reportDate,
-                                )
-                              ) {
-                                setSelectedHistory(updated[0]);
-                              } else {
-                                setSelectedHistory(updated[0] || null);
-                              }
+                              setShowDeleteHistoryModal(true);
                             }}
                             style={{
                               borderRadius: "10px",
@@ -1461,6 +1437,124 @@ export default function ReportApp() {
                   }}
                 >
                   Добавить
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Модалка подтверждения удаления отчёта из истории */}
+        {showDeleteHistoryModal && selectedHistory && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.55)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 10001,
+            }}
+            onClick={() => setShowDeleteHistoryModal(false)}
+          >
+            <div
+              style={{
+                background: "rgba(15,20,35,0.98)",
+                borderRadius: "18px",
+                border: "1px solid rgba(255,80,80,0.5)",
+                padding: "20px 22px",
+                minWidth: "320px",
+                maxWidth: "420px",
+                boxShadow: "0 22px 50px rgba(0,0,0,0.7)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: "rgba(255,255,255,0.92)",
+                  marginBottom: "8px",
+                }}
+              >
+                Удалить отчёт?
+              </div>
+              <div
+                style={{
+                  fontSize: "13px",
+                  color: "rgba(255,255,255,0.7)",
+                  marginBottom: "14px",
+                  lineHeight: 1.5,
+                }}
+              >
+                Ты удаляешь сохранённый отчёт от{" "}
+                <span style={{ color: "#ff6b6b", fontWeight: 600 }}>
+                  {selectedHistory.reportDate}
+                </span>
+                . Отменить это действие будет нельзя.
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: "8px",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteHistoryModal(false)}
+                  style={{
+                    padding: "7px 14px",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(255,255,255,0.35)",
+                    background: "transparent",
+                    color: "rgba(255,255,255,0.9)",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = (history || []).filter(
+                      (h) => h.reportDate !== selectedHistory.reportDate,
+                    );
+                    setHistory(updated);
+                    try {
+                      localStorage.setItem(
+                        HISTORY_KEY,
+                        JSON.stringify(updated),
+                      );
+                    } catch (e) {
+                      console.error("Error updating history store", e);
+                    }
+                    if (
+                      updated.length > 0 &&
+                      selectedHistory &&
+                      updated.some(
+                        (h) => h.reportDate === selectedHistory.reportDate,
+                      )
+                    ) {
+                      setSelectedHistory(updated[0]);
+                    } else {
+                      setSelectedHistory(updated[0] || null);
+                    }
+                    setShowDeleteHistoryModal(false);
+                  }}
+                  style={{
+                    padding: "7px 16px",
+                    borderRadius: "999px",
+                    border: "none",
+                    background: "linear-gradient(135deg, #ff6b6b, #ff4757)",
+                    color: "#fff",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Да, удалить
                 </button>
               </div>
             </div>
