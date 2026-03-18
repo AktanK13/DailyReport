@@ -14,9 +14,8 @@ function transformReportToHtml(text) {
     );
     if (match && match.groups) {
       const { indent, tag, url } = match.groups;
-      const tagText = `(${tag.trim()})`;
       const safeUrl = escapeHtml(url.trim());
-      const safeTag = escapeHtml(tagText);
+      const safeTag = escapeHtml(tag.trim());
       return `${escapeHtml(indent)}<a href="${safeUrl}">${safeTag}</a>`;
     }
 
@@ -86,7 +85,7 @@ export const handler = async (event) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: botChatId,
-        text: `📋 Скопируй текст ниже:\n\n${text}`,
+        text,
         disable_web_page_preview: true,
       }),
     });
