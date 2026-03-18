@@ -63,6 +63,26 @@ button:focus-visible {
   pointer-events: auto;
 }
 
+@keyframes tg-sending {
+  0%   { opacity: 1;   transform: translateX(0)   scale(1); }
+  50%  { opacity: 0.5; transform: translateX(3px)  scale(0.95); }
+  100% { opacity: 1;   transform: translateX(0)   scale(1); }
+}
+
+.tg-sending-btn {
+  animation: tg-sending 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.spin {
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;

@@ -712,7 +712,14 @@ export default function ReportApp() {
                 </div>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-end",
+                  gap: "4px",
+                }}
+              >
                 <button
                   type="button"
                   disabled={linkTgLoading}
@@ -727,7 +734,11 @@ export default function ReportApp() {
                       });
                       const data = await res.json().catch(() => ({}));
                       if (!res.ok) {
-                        setLinkTgError(data?.message || data?.error || `Ошибка ${res.status}`);
+                        setLinkTgError(
+                          data?.message ||
+                            data?.error ||
+                            `Ошибка ${res.status}`,
+                        );
                         return;
                       }
                       const url = data.botLink ?? data.link;
@@ -744,7 +755,9 @@ export default function ReportApp() {
                       }
                     } catch (e) {
                       console.error("Error linking Telegram", e);
-                      setLinkTgError("Не удалось подключиться. Проверь интернет или открой консоль (F12).");
+                      setLinkTgError(
+                        "Не удалось подключиться. Проверь интернет или открой консоль (F12).",
+                      );
                     } finally {
                       setLinkTgLoading(false);
                     }
@@ -780,7 +793,14 @@ export default function ReportApp() {
                   </span>
                 </button>
                 {linkTgError && (
-                  <span style={{ fontSize: "11px", color: "#ff6b6b", maxWidth: "220px", textAlign: "right" }}>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      color: "#ff6b6b",
+                      maxWidth: "220px",
+                      textAlign: "right",
+                    }}
+                  >
                     {linkTgError}
                   </span>
                 )}
@@ -875,7 +895,7 @@ export default function ReportApp() {
           </div>
 
           {/* Banner: loaded from previous day */}
-          
+
           {/* Fields */}
           {fields.map(({ id, label, value, set, placeholder }) => {
             const linesCount = value ? value.split("\n").length : 0;
@@ -1162,34 +1182,51 @@ export default function ReportApp() {
               type="button"
               onClick={isTelegramLinked ? handleSendToTelegram : undefined}
               disabled={sending || !isTelegramLinked}
+              className={sending ? "tg-sending-btn" : ""}
               style={{
-                padding: "10px 12px",
+                padding: "10px 14px",
                 borderRadius: "14px",
-                border: isTelegramLinked
-                  ? "1px solid rgba(42,171,238,0.6)"
-                  : "1px solid rgba(255,255,255,0.15)",
+                border: sending
+                  ? "1px solid rgba(42,171,238,0.9)"
+                  : isTelegramLinked
+                    ? "1px solid rgba(42,171,238,0.6)"
+                    : "1px solid rgba(255,255,255,0.15)",
                 background: sending
-                  ? "rgba(42,171,238,0.18)"
+                  ? "rgba(42,171,238,0.32)"
                   : isTelegramLinked
                     ? "rgba(42,171,238,0.24)"
                     : "rgba(255,255,255,0.04)",
                 color: isTelegramLinked ? "#e3f5ff" : "rgba(255,255,255,0.4)",
                 fontWeight: "600",
                 fontSize: "13px",
-                cursor:
-                  sending || !isTelegramLinked ? "default" : "pointer",
+                cursor: sending || !isTelegramLinked ? "default" : "pointer",
                 whiteSpace: "nowrap",
                 display: "flex",
                 alignItems: "center",
-                gap: "6px",
-                minWidth: "130px",
+                gap: "8px",
+                minWidth: "140px",
+                transition: "background 0.2s, border-color 0.2s",
+                boxShadow: sending
+                  ? "0 0 14px rgba(42,171,238,0.4)"
+                  : "none",
               }}
             >
-              {sending
-                ? "⏳"
-                : isTelegramLinked
-                  ? "✈️ Отправить в Telegram"
-                  : "✈️ Подключи TG"}
+              {sending ? (
+                <>
+                  <span className="spin" style={{ fontSize: "15px" }}>⟳</span>
+                  <span>Отправка…</span>
+                </>
+              ) : isTelegramLinked ? (
+                <>
+                  <span>✈️</span>
+                  <span>Отправить в TG</span>
+                </>
+              ) : (
+                <>
+                  <span>✈️</span>
+                  <span>Подключи TG</span>
+                </>
+              )}
             </button>
             <button
               type="button"
@@ -1272,7 +1309,8 @@ export default function ReportApp() {
                 lineHeight: 1.4,
               }}
             >
-              Выбери дату — откроется сохранённый отчёт. Можно скопировать или удалить.
+              Выбери дату — откроется сохранённый отчёт. Можно скопировать или
+              удалить.
             </div>
             {history && history.length > 0 ? (
               <div
@@ -1353,117 +1391,119 @@ export default function ReportApp() {
                       style={{
                         background: "rgba(0,0,0,0.35)",
                         borderRadius: "14px",
-                        padding: "16px 18px",
+                        padding: "14px 16px",
                         border: "1px solid rgba(255,255,255,0.1)",
                         boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "10px",
                       }}
                     >
+                      {/* Заголовок */}
                       <div
                         style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          marginBottom: "12px",
-                          paddingBottom: "10px",
+                          fontSize: "12px",
+                          color: "rgba(255,255,255,0.55)",
+                          fontWeight: 500,
+                          paddingBottom: "8px",
                           borderBottom: "1px solid rgba(255,255,255,0.08)",
                         }}
                       >
-                        <span
-                          style={{
-                            fontSize: "13px",
-                            color: "rgba(255,255,255,0.9)",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Отчёт от {selectedHistory.reportDate}
+                        Отчёт от{" "}
+                        <span style={{ color: "rgba(255,255,255,0.9)", fontWeight: 700 }}>
+                          {selectedHistory.reportDate}
                         </span>
-                        <div style={{ display: "flex", gap: "8px" }}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              try {
-                                navigator.clipboard.writeText(
-                                  selectedHistory.text,
-                                );
-                                setHistoryCopied(true);
-                                setTimeout(() => setHistoryCopied(false), 1500);
-                              } catch (e) {
-                                console.error(
-                                  "Error copying selected history entry",
-                                  e,
-                                );
-                              }
-                            }}
-                            style={{
-                              borderRadius: "10px",
-                              border: historyCopied
-                                ? "1px solid rgba(80,200,120,0.7)"
-                                : "1px solid rgba(255,255,255,0.2)",
-                              background: historyCopied
-                                ? "rgba(80,200,120,0.25)"
-                                : "rgba(255,255,255,0.1)",
-                              color: historyCopied
-                                ? "rgba(230,255,235,0.95)"
-                                : "rgba(255,255,255,0.95)",
-                              fontSize: "12px",
-                              padding: "6px 12px",
-                              cursor: "pointer",
-                              fontWeight: 500,
-                            }}
-                          >
-                            {historyCopied ? "✓ Скопировано" : "📋 Копировать"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleImportHistoryToCurrent}
-                            style={{
-                              borderRadius: "10px",
-                              border: "1px solid rgba(42,171,238,0.5)",
-                              background: "rgba(42,171,238,0.12)",
-                              color: "#2AABEE",
-                              fontSize: "12px",
-                              padding: "6px 12px",
-                              cursor: "pointer",
-                              fontWeight: 500,
-                            }}
-                          >
-                            ⬅ Импорт в текущий
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowDeleteHistoryModal(true);
-                            }}
-                            style={{
-                              borderRadius: "10px",
-                              border: "1px solid rgba(255,80,80,0.5)",
-                              background: "rgba(255,80,80,0.12)",
-                              color: "#ff6b6b",
-                              fontSize: "12px",
-                              padding: "6px 12px",
-                              cursor: "pointer",
-                              fontWeight: 500,
-                            }}
-                          >
-                            🗑 Удалить
-                          </button>
-                        </div>
                       </div>
+
+                      {/* Текст отчёта */}
                       <pre
                         style={{
                           margin: 0,
                           whiteSpace: "pre-wrap",
-                          fontSize: "13px",
-                          color: "rgba(255,255,255,0.9)",
+                          fontSize: "12px",
+                          color: "rgba(255,255,255,0.88)",
                           fontFamily: "'SF Mono', 'Consolas', monospace",
                           lineHeight: "1.6",
-                          maxHeight: "220px",
+                          maxHeight: "200px",
                           overflowY: "auto",
                           paddingRight: "4px",
                         }}
                       >
                         {selectedHistory.text}
                       </pre>
+
+                      {/* Кнопки действий */}
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "6px",
+                          flexWrap: "wrap",
+                          paddingTop: "8px",
+                          borderTop: "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            try {
+                              navigator.clipboard.writeText(selectedHistory.text);
+                              setHistoryCopied(true);
+                              setTimeout(() => setHistoryCopied(false), 1500);
+                            } catch (e) {
+                              console.error("Error copying selected history entry", e);
+                            }
+                          }}
+                          style={{
+                            borderRadius: "999px",
+                            border: historyCopied
+                              ? "1px solid rgba(80,200,120,0.7)"
+                              : "1px solid rgba(255,255,255,0.2)",
+                            background: historyCopied
+                              ? "rgba(80,200,120,0.2)"
+                              : "rgba(255,255,255,0.07)",
+                            color: historyCopied ? "rgba(220,255,230,0.95)" : "rgba(255,255,255,0.9)",
+                            fontSize: "12px",
+                            padding: "5px 11px",
+                            cursor: "pointer",
+                            fontWeight: 500,
+                            transition: "all 0.2s",
+                          }}
+                        >
+                          {historyCopied ? "✓ Скопировано" : "📋 Копировать"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleImportHistoryToCurrent}
+                          style={{
+                            borderRadius: "999px",
+                            border: "1px solid rgba(42,171,238,0.5)",
+                            background: "rgba(42,171,238,0.1)",
+                            color: "#2AABEE",
+                            fontSize: "12px",
+                            padding: "5px 11px",
+                            cursor: "pointer",
+                            fontWeight: 500,
+                          }}
+                        >
+                          ⬅ Загрузить
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowDeleteHistoryModal(true)}
+                          style={{
+                            borderRadius: "999px",
+                            border: "1px solid rgba(255,80,80,0.45)",
+                            background: "rgba(255,80,80,0.1)",
+                            color: "#ff6b6b",
+                            fontSize: "12px",
+                            padding: "5px 11px",
+                            cursor: "pointer",
+                            fontWeight: 500,
+                          }}
+                        >
+                          🗑 Удалить
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1480,11 +1520,11 @@ export default function ReportApp() {
                   border: "1px dashed rgba(255,255,255,0.1)",
                 }}
               >
-                Пока нет сохранённых отчётов. Нажми «Сохранить отчёт», чтобы добавить.
+                Пока нет сохранённых отчётов. Нажми «Сохранить отчёт», чтобы
+                добавить.
               </div>
             )}
           </div>
-
         </div>
         {/* Модальное окно добавления тега */}
         {showAddTagModal && (
@@ -1714,339 +1754,339 @@ export default function ReportApp() {
           }}
         >
           {(() => {
-          const now = new Date();
-          const salary = getNextSalaryDate(now);
-          const advance = getNextAdvanceDate(now);
+            const now = new Date();
+            const salary = getNextSalaryDate(now);
+            const advance = getNextAdvanceDate(now);
 
-          const daysDiff = (target) =>
-            Math.ceil(
-              (target.setHours(0, 0, 0, 0) -
-                new Date(
-                  now.getFullYear(),
-                  now.getMonth(),
-                  now.getDate(),
-                ).setHours(0, 0, 0, 0)) /
-                (1000 * 60 * 60 * 24),
+            const daysDiff = (target) =>
+              Math.ceil(
+                (target.setHours(0, 0, 0, 0) -
+                  new Date(
+                    now.getFullYear(),
+                    now.getMonth(),
+                    now.getDate(),
+                  ).setHours(0, 0, 0, 0)) /
+                  (1000 * 60 * 60 * 24),
+              );
+
+            const salaryDays = daysDiff(new Date(salary));
+            const advanceDays = daysDiff(new Date(advance));
+
+            const fmt = (d) =>
+              `${String(d.getDate()).padStart(2, "0")}.${String(
+                d.getMonth() + 1,
+              ).padStart(2, "0")}.${d.getFullYear()}`;
+
+            const daysText = (n) =>
+              n === 0
+                ? "сегодня"
+                : n === 1
+                  ? "через 1 день"
+                  : `через ${n} дней`;
+
+            // Стата по отчётам за месяц
+            const historyDates = new Set(
+              (history || []).map((h) => h.reportDate).filter(Boolean),
             );
+            const today = new Date();
+            const ym = `${today.getFullYear()}-${String(
+              today.getMonth() + 1,
+            ).padStart(2, "0")}`;
+            const monthCount = (history || []).filter(
+              (h) => h.reportDate && h.reportDate.startsWith(ym),
+            ).length;
 
-          const salaryDays = daysDiff(new Date(salary));
-          const advanceDays = daysDiff(new Date(advance));
-
-          const fmt = (d) =>
-            `${String(d.getDate()).padStart(2, "0")}.${String(
-              d.getMonth() + 1,
-            ).padStart(2, "0")}.${d.getFullYear()}`;
-
-          const daysText = (n) =>
-            n === 0
-              ? "сегодня"
-              : n === 1
-                ? "через 1 день"
-                : `через ${n} дней`;
-
-          // Стата по отчётам за месяц
-          const historyDates = new Set(
-            (history || []).map((h) => h.reportDate).filter(Boolean),
-          );
-          const today = new Date();
-          const ym = `${today.getFullYear()}-${String(
-            today.getMonth() + 1,
-          ).padStart(2, "0")}`;
-          const monthCount = (history || []).filter(
-            (h) => h.reportDate && h.reportDate.startsWith(ym),
-          ).length;
-
-          let streak = 0;
-          for (;;) {
-            const d = new Date(
-              today.getFullYear(),
-              today.getMonth(),
-              today.getDate() - streak,
-            );
-            const iso = d.toISOString().slice(0, 10);
-            if (historyDates.has(iso)) {
-              streak += 1;
-            } else {
-              break;
+            let streak = 0;
+            for (;;) {
+              const d = new Date(
+                today.getFullYear(),
+                today.getMonth(),
+                today.getDate() - streak,
+              );
+              const iso = d.toISOString().slice(0, 10);
+              if (historyDates.has(iso)) {
+                streak += 1;
+              } else {
+                break;
+              }
             }
-          }
 
-          return (
-            <>
-              {/* Карточка обратного отсчёта до ЗП / аванса */}
-              <div
-                style={{
-                  background: "rgba(0,0,0,0.3)",
-                  borderRadius: "20px",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  padding: "18px 18px",
-                  width: "260px",
-                  boxShadow: "0 18px 40px rgba(0,0,0,0.5)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "10px",
-                  marginBottom: "12px",
-                }}
-              >
+            return (
+              <>
+                {/* Карточка обратного отсчёта до ЗП / аванса */}
                 <div
                   style={{
-                    fontSize: "13px",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.6px",
-                    color: "rgba(255,255,255,0.6)",
-                  }}
-                >
-                  До денег
-                </div>
-                <div
-                  style={{
-                    background: "rgba(255,255,255,0.06)",
-                    borderRadius: "14px",
-                    padding: "10px 12px",
+                    background: "rgba(0,0,0,0.3)",
+                    borderRadius: "20px",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    padding: "18px 18px",
+                    width: "260px",
+                    boxShadow: "0 18px 40px rgba(0,0,0,0.5)",
                     display: "flex",
                     flexDirection: "column",
-                    gap: "6px",
+                    gap: "10px",
+                    marginBottom: "12px",
                   }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: "12px",
-                        color: "rgba(255,255,255,0.8)",
-                      }}
-                    >
-                      💰 Аванс
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        color: "rgba(255,255,255,0.6)",
-                      }}
-                    >
-                      {fmt(salary)}
-                    </span>
-                  </div>
                   <div
                     style={{
                       fontSize: "13px",
-                      fontWeight: 600,
-                      color: "#fff",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.6px",
+                      color: "rgba(255,255,255,0.6)",
                     }}
                   >
-                    {daysText(salaryDays)}
+                    До денег
+                  </div>
+                  <div
+                    style={{
+                      background: "rgba(255,255,255,0.06)",
+                      borderRadius: "14px",
+                      padding: "10px 12px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "6px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          color: "rgba(255,255,255,0.8)",
+                        }}
+                      >
+                        💰 Аванс
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          color: "rgba(255,255,255,0.6)",
+                        }}
+                      >
+                        {fmt(salary)}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#fff",
+                      }}
+                    >
+                      {daysText(salaryDays)}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      background: "rgba(255,255,255,0.03)",
+                      borderRadius: "14px",
+                      padding: "10px 12px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "6px",
+                      border: "1px dashed rgba(255,255,255,0.12)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          color: "rgba(255,255,255,0.75)",
+                        }}
+                      >
+                        💵 Зарплата
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          color: "rgba(255,255,255,0.6)",
+                        }}
+                      >
+                        {fmt(advance)}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        color: "rgba(255,255,255,0.92)",
+                      }}
+                    >
+                      {daysText(advanceDays)}
+                    </div>
                   </div>
                 </div>
 
+                {/* Стата за месяц */}
                 <div
                   style={{
-                    background: "rgba(255,255,255,0.03)",
-                    borderRadius: "14px",
-                    padding: "10px 12px",
+                    background: "rgba(0,0,0,0.3)",
+                    borderRadius: "20px",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    padding: "14px 16px",
+                    width: "260px",
+                    boxShadow: "0 14px 32px rgba(0,0,0,0.45)",
                     display: "flex",
                     flexDirection: "column",
                     gap: "6px",
-                    border: "1px dashed rgba(255,255,255,0.12)",
+                    marginBottom: "12px",
                   }}
                 >
                   <div
                     style={{
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.4px",
+                      color: "rgba(255,255,255,0.65)",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Стата за месяц
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "rgba(255,255,255,0.78)",
                       display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
+                      flexDirection: "column",
+                      gap: "4px",
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: "12px",
-                        color: "rgba(255,255,255,0.75)",
-                      }}
-                    >
-                      💵 Зарплата
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        color: "rgba(255,255,255,0.6)",
-                      }}
-                    >
-                      {fmt(advance)}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      color: "rgba(255,255,255,0.92)",
-                    }}
-                  >
-                    {daysText(advanceDays)}
+                    <div>
+                      📆 Отчётов в этом месяце:{" "}
+                      <span style={{ fontWeight: 600 }}>{monthCount}</span>
+                    </div>
+                    <div>
+                      🔥 Дней подряд с отчётами:{" "}
+                      <span style={{ fontWeight: 600 }}>{streak}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Стата за месяц */}
-              <div
-                style={{
-                  background: "rgba(0,0,0,0.3)",
-                  borderRadius: "20px",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  padding: "14px 16px",
-                  width: "260px",
-                  boxShadow: "0 14px 32px rgba(0,0,0,0.45)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "6px",
-                  marginBottom: "12px",
-                }}
-              >
+                {/* Экспорт / импорт настроек */}
                 <div
                   style={{
-                    fontSize: "12px",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.4px",
-                    color: "rgba(255,255,255,0.65)",
-                    marginBottom: "4px",
-                  }}
-                >
-                  Стата за месяц
-                </div>
-                <div
-                  style={{
+                    background: "rgba(0,0,0,0.3)",
+                    borderRadius: "20px",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    padding: "12px 14px",
+                    width: "260px",
+                    boxShadow: "0 10px 24px rgba(0,0,0,0.4)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
                     fontSize: "11px",
-                    color: "rgba(255,255,255,0.78)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "4px",
                   }}
                 >
-                  <div>
-                    📆 Отчётов в этом месяце:{" "}
-                    <span style={{ fontWeight: 600 }}>{monthCount}</span>
-                  </div>
-                  <div>
-                    🔥 Дней подряд с отчётами:{" "}
-                    <span style={{ fontWeight: 600 }}>{streak}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Экспорт / импорт настроек */}
-              <div
-                style={{
-                  background: "rgba(0,0,0,0.3)",
-                  borderRadius: "20px",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  padding: "12px 14px",
-                  width: "260px",
-                  boxShadow: "0 10px 24px rgba(0,0,0,0.4)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "8px",
-                  fontSize: "11px",
-                }}
-              >
-                <div
-                  style={{
-                    color: "rgba(255,255,255,0.7)",
-                    marginBottom: "2px",
-                  }}
-                >
-                  Экспорт / импорт настроек
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "6px",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const payload = {
-                        profileName,
-                        profileAvatar,
-                        customTags,
-                        hiddenTags,
-                        done,
-                        todo,
-                        problems,
-                        reportDate,
-                        history,
-                      };
-                      try {
-                        const blob = new Blob(
-                          [JSON.stringify(payload, null, 2)],
-                          {
-                            type: "application/json",
-                          },
-                        );
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = "daily-report-settings.json";
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                      } catch (e) {
-                        console.error("Error exporting settings", e);
-                      }
-                    }}
+                  <div
                     style={{
-                      flex: 1,
-                      borderRadius: "999px",
-                      border: "1px solid rgba(255,255,255,0.2)",
-                      background: "rgba(255,255,255,0.05)",
-                      color: "rgba(255,255,255,0.9)",
-                      padding: "6px 8px",
-                      cursor: "pointer",
-                      fontSize: "11px",
+                      color: "rgba(255,255,255,0.7)",
+                      marginBottom: "2px",
                     }}
-                    title="Экспортирует профиль, теги, историю и текущие поля в JSON‑файл"
                   >
-                    ⬆️ Экспорт
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (settingsFileInputRef.current) {
-                        settingsFileInputRef.current.click();
-                      }
-                    }}
+                    Экспорт / импорт настроек
+                  </div>
+                  <div
                     style={{
-                      flex: 1,
-                      borderRadius: "999px",
-                      border: "1px solid rgba(255,255,255,0.2)",
-                      background: "rgba(255,255,255,0.05)",
-                      color: "rgba(255,255,255,0.9)",
-                      padding: "6px 8px",
-                      cursor: "pointer",
-                      fontSize: "11px",
+                      display: "flex",
+                      gap: "6px",
+                      justifyContent: "space-between",
                     }}
-                    title="Импортирует профиль, теги, историю и текущие поля из JSON‑файла"
                   >
-                    ⬇️ Импорт
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const payload = {
+                          profileName,
+                          profileAvatar,
+                          customTags,
+                          hiddenTags,
+                          done,
+                          todo,
+                          problems,
+                          reportDate,
+                          history,
+                        };
+                        try {
+                          const blob = new Blob(
+                            [JSON.stringify(payload, null, 2)],
+                            {
+                              type: "application/json",
+                            },
+                          );
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = "daily-report-settings.json";
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                        } catch (e) {
+                          console.error("Error exporting settings", e);
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        borderRadius: "999px",
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        background: "rgba(255,255,255,0.05)",
+                        color: "rgba(255,255,255,0.9)",
+                        padding: "6px 8px",
+                        cursor: "pointer",
+                        fontSize: "11px",
+                      }}
+                      title="Экспортирует профиль, теги, историю и текущие поля в JSON‑файл"
+                    >
+                      ⬆️ Экспорт
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (settingsFileInputRef.current) {
+                          settingsFileInputRef.current.click();
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        borderRadius: "999px",
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        background: "rgba(255,255,255,0.05)",
+                        color: "rgba(255,255,255,0.9)",
+                        padding: "6px 8px",
+                        cursor: "pointer",
+                        fontSize: "11px",
+                      }}
+                      title="Импортирует профиль, теги, историю и текущие поля из JSON‑файла"
+                    >
+                      ⬇️ Импорт
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <input
-                ref={settingsFileInputRef}
-                type="file"
-                accept="application/json"
-                style={{ display: "none" }}
-                onChange={handleSettingsFileChange}
-              />
-            </>
-          );
-        })()}
+                <input
+                  ref={settingsFileInputRef}
+                  type="file"
+                  accept="application/json"
+                  style={{ display: "none" }}
+                  onChange={handleSettingsFileChange}
+                />
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>
