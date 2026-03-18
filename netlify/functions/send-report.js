@@ -49,12 +49,12 @@ export const handler = async (event) => {
     }
 
     const token = process.env.TG_BOT_TOKEN;
-    const chatId = process.env.TG_CHAT_ID;
+    const botChatId = process.env.TG_BOT_ID;
 
-    if (!token || !chatId) {
+    if (!token || !botChatId) {
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: "Telegram env vars not set" }),
+        body: JSON.stringify({ error: "TG_BOT_TOKEN or TG_BOT_ID env var not set" }),
       };
     }
 
@@ -64,7 +64,7 @@ export const handler = async (event) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        chat_id: chatId,
+        chat_id: botChatId,
         text: htmlText,
         parse_mode: "HTML",
       }),
