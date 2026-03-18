@@ -179,12 +179,14 @@ export default function ReportApp() {
   const [selectedHistory, setSelectedHistory] = useState(null);
   const [historyCopied, setHistoryCopied] = useState(false);
   const [showDeleteHistoryModal, setShowDeleteHistoryModal] = useState(false);
+  const [isTelegramLinked, setIsTelegramLinked] = useState(false);
   const textareasRef = useRef({});
   const avatarFileInputRef = useRef(null);
   const settingsFileInputRef = useRef(null);
   const [showAddTagModal, setShowAddTagModal] = useState(false);
   const [addTagInputValue, setAddTagInputValue] = useState("");
   const addTagInputRef = useRef(null);
+  const USER_ID = "local-user"; // пока один пользователь, фиксированный id
 
   useEffect(() => {
     loadSaved().then((data) => {
@@ -215,6 +217,13 @@ export default function ReportApp() {
         }
       } catch {
         setHistory([]);
+      }
+
+      try {
+        const linked = localStorage.getItem("telegram_linked");
+        setIsTelegramLinked(linked === "1");
+      } catch {
+        setIsTelegramLinked(false);
       }
 
       setLoaded(true);
@@ -299,10 +308,13 @@ export default function ReportApp() {
     setSending(true);
     setSendStatus(null);
     try {
+      const text = generateReport();
+
+      // 1) Отправка через Netlify-функцию в рабочий чат (как раньше)
       const resp = await fetch("/.netlify/functions/send-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: generateReport() }),
+        body: JSON.stringify({ text }),
       });
 
       if (!resp.ok) {
@@ -312,6 +324,22 @@ export default function ReportApp() {
       const data = await resp.json().catch(() => ({}));
       if (data && data.error && !data.ok) {
         throw new Error("Telegram API error");
+      }
+
+      // 2) Отправка отчёта в твой бот на Render для сохранения в БД
+      try {
+        await fetch("https://mega-daily-report-bot.onrender.com/api/report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: USER_ID,
+            text,
+            date: reportDate,
+          }),
+        });
+      } catch (e) {
+        // не ломаем основной флоу, просто логируем
+        console.error("Error sending report to bot API", e);
       }
 
       setSendStatus("ok");
@@ -581,91 +609,153 @@ export default function ReportApp() {
               marginBottom: "20px",
             }}
           >
-            {/* Row 1: профиль */}
+            {/* Row 1: профиль + кнопка подключения TG справа */}
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "10px",
+                justifyContent: "space-between",
+                gap: "12px",
                 marginBottom: "32px",
               }}
             >
-              <button
-                type="button"
-                onClick={() => avatarFileInputRef.current?.click()}
-                title="Изменить аватар"
+              <div
                 style={{
-                  padding: 0,
-                  margin: 0,
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
                 }}
               >
-                <div
+                <button
+                  type="button"
+                  onClick={() => avatarFileInputRef.current?.click()}
+                  title="Изменить аватар"
                   style={{
-                    width: "44px",
-                    height: "44px",
-                    borderRadius: "50%",
-                    background: profileAvatar?.trim()
-                      ? "transparent"
-                      : "linear-gradient(135deg, #2AABEE, #229ED9)",
-                    overflow: "hidden",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "18px",
-                    color: "#fff",
-                    flexShrink: 0,
-                    border: "1px solid rgba(255,255,255,0.25)",
-                  }}
-                >
-                  {profileAvatar?.trim() ? (
-                    <img
-                      src={profileAvatar}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
-                    />
-                  ) : (
-                    (profileName || "DR")
-                      .trim()
-                      .split(" ")
-                      .map((p) => p[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2)
-                  )}
-                </div>
-              </button>
-              <div>
-                <input
-                  type="text"
-                  value={profileName}
-                  onChange={(e) => setProfileName(e.target.value)}
-                  placeholder="Твоё имя"
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    color: "#fff",
-                    fontWeight: 600,
-                    fontSize: "32px",
-                    outline: "none",
                     padding: 0,
                     margin: 0,
-                    width: "200px",
+                    border: "none",
+                    background: "transparent",
+                    cursor: "pointer",
                   }}
-                />
-                <input
-                  ref={avatarFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarFileChange}
-                  style={{ display: "none" }}
-                />
+                >
+                  <div
+                    style={{
+                      width: "44px",
+                      height: "44px",
+                      borderRadius: "50%",
+                      background: profileAvatar?.trim()
+                        ? "transparent"
+                        : "linear-gradient(135deg, #2AABEE, #229ED9)",
+                      overflow: "hidden",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "18px",
+                      color: "#fff",
+                      flexShrink: 0,
+                      border: "1px solid rgba(255,255,255,0.25)",
+                    }}
+                  >
+                    {profileAvatar?.trim() ? (
+                      <img
+                        src={profileAvatar}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                      />
+                    ) : (
+                      (profileName || "DR")
+                        .trim()
+                        .split(" ")
+                        .map((p) => p[0])
+                        .join("")
+                        .toUpperCase()
+                        .slice(0, 2)
+                    )}
+                  </div>
+                </button>
+                <div>
+                  <input
+                    type="text"
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    placeholder="Твоё имя"
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      color: "#fff",
+                      fontWeight: 600,
+                      fontSize: "32px",
+                      outline: "none",
+                      padding: 0,
+                      margin: 0,
+                      width: "200px",
+                    }}
+                  />
+                  <input
+                    ref={avatarFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarFileChange}
+                    style={{ display: "none" }}
+                  />
+                </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  fetch(
+                    "https://mega-daily-report-bot.onrender.com/api/link-tg",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ userId: USER_ID }),
+                    },
+                  )
+                    .then((r) => r.json())
+                    .then((data) => {
+                      if (data && data.botLink) {
+                        try {
+                          localStorage.setItem("telegram_linked", "1");
+                          setIsTelegramLinked(true);
+                        } catch {
+                          setIsTelegramLinked(true);
+                        }
+                        window.location.href = data.botLink;
+                      }
+                    })
+                    .catch((e) => {
+                      console.error("Error linking Telegram", e);
+                    });
+                }}
+                style={{
+                  borderRadius: "999px",
+                  border: isTelegramLinked
+                    ? "1px solid rgba(80,200,120,0.8)"
+                    : "1px solid rgba(42,171,238,0.7)",
+                  background: isTelegramLinked
+                    ? "rgba(80,200,120,0.18)"
+                    : "rgba(42,171,238,0.16)",
+                  color: isTelegramLinked
+                    ? "rgba(220,255,230,0.95)"
+                    : "#e3f5ff",
+                  fontSize: "12px",
+                  padding: "8px 12px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <span style={{ fontSize: "16px" }}>🤖</span>
+                <span>
+                  {isTelegramLinked ? "TG подключён" : "Подключить Telegram"}
+                </span>
+              </button>
             </div>
 
             {/* Row 2: Ежедневный отчёт + кнопка очистки */}
@@ -1041,19 +1131,24 @@ export default function ReportApp() {
             {/* Справа две маленькие кнопки */}
             <button
               type="button"
-              onClick={handleSendToTelegram}
-              disabled={sending}
+              onClick={isTelegramLinked ? handleSendToTelegram : undefined}
+              disabled={sending || !isTelegramLinked}
               style={{
                 padding: "10px 12px",
                 borderRadius: "14px",
-                border: "1px solid rgba(42,171,238,0.6)",
+                border: isTelegramLinked
+                  ? "1px solid rgba(42,171,238,0.6)"
+                  : "1px solid rgba(255,255,255,0.15)",
                 background: sending
                   ? "rgba(42,171,238,0.18)"
-                  : "rgba(42,171,238,0.24)",
-                color: "#e3f5ff",
+                  : isTelegramLinked
+                    ? "rgba(42,171,238,0.24)"
+                    : "rgba(255,255,255,0.04)",
+                color: isTelegramLinked ? "#e3f5ff" : "rgba(255,255,255,0.4)",
                 fontWeight: "600",
                 fontSize: "13px",
-                cursor: sending ? "default" : "pointer",
+                cursor:
+                  sending || !isTelegramLinked ? "default" : "pointer",
                 whiteSpace: "nowrap",
                 display: "flex",
                 alignItems: "center",
@@ -1061,7 +1156,11 @@ export default function ReportApp() {
                 minWidth: "130px",
               }}
             >
-              {sending ? "⏳" : "✈️ Отправить в Telegram"}
+              {sending
+                ? "⏳"
+                : isTelegramLinked
+                  ? "✈️ Отправить в Telegram"
+                  : "✈️ Подключи TG"}
             </button>
             <button
               type="button"
