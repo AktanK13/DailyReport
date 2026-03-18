@@ -54,6 +54,12 @@ const getNextAdvanceDate = (fromDate = new Date()) => {
   return candidate;
 };
 
+const API_BASE =
+  (typeof import.meta !== "undefined" &&
+    import.meta.env &&
+    import.meta.env.VITE_API_BASE_URL) ||
+  "https://mega-daily-report-bot.onrender.com";
+
 const STORAGE_KEY = "daily_report_fields";
 const HISTORY_KEY = "daily_report_history";
 
@@ -180,6 +186,8 @@ export default function ReportApp() {
   const [historyCopied, setHistoryCopied] = useState(false);
   const [showDeleteHistoryModal, setShowDeleteHistoryModal] = useState(false);
   const [isTelegramLinked, setIsTelegramLinked] = useState(false);
+  const [linkTgLoading, setLinkTgLoading] = useState(false);
+  const [linkTgError, setLinkTgError] = useState(null);
   const textareasRef = useRef({});
   const avatarFileInputRef = useRef(null);
   const settingsFileInputRef = useRef(null);
@@ -328,7 +336,7 @@ export default function ReportApp() {
 
       // 2) Отправка отчёта в твой бот на Render для сохранения в БД
       try {
-        await fetch("https://mega-daily-report-bot.onrender.com/api/report", {
+        await fetch(`${API_BASE}/api/report`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -704,58 +712,79 @@ export default function ReportApp() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  fetch(
-                    "https://mega-daily-report-bot.onrender.com/api/link-tg",
-                    {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ userId: USER_ID }),
-                    },
-                  )
-                    .then((r) => r.json())
-                    .then((data) => {
-                      if (data && data.botLink) {
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
+                <button
+                  type="button"
+                  disabled={linkTgLoading}
+                  onClick={async () => {
+                    setLinkTgError(null);
+                    setLinkTgLoading(true);
+                    try {
+                      const res = await fetch(`${API_BASE}/api/link-tg`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ userId: USER_ID }),
+                      });
+                      const data = await res.json().catch(() => ({}));
+                      if (!res.ok) {
+                        setLinkTgError(data?.message || data?.error || `Ошибка ${res.status}`);
+                        return;
+                      }
+                      const url = data.botLink ?? data.link;
+                      if (url) {
                         try {
                           localStorage.setItem("telegram_linked", "1");
                           setIsTelegramLinked(true);
                         } catch {
                           setIsTelegramLinked(true);
                         }
-                        window.location.href = data.botLink;
+                        window.location.href = url;
+                      } else {
+                        setLinkTgError("Сервер не вернул ссылку на бота");
                       }
-                    })
-                    .catch((e) => {
+                    } catch (e) {
                       console.error("Error linking Telegram", e);
-                    });
-                }}
-                style={{
-                  borderRadius: "999px",
-                  border: isTelegramLinked
-                    ? "1px solid rgba(80,200,120,0.8)"
-                    : "1px solid rgba(42,171,238,0.7)",
-                  background: isTelegramLinked
-                    ? "rgba(80,200,120,0.18)"
-                    : "rgba(42,171,238,0.16)",
-                  color: isTelegramLinked
-                    ? "rgba(220,255,230,0.95)"
-                    : "#e3f5ff",
-                  fontSize: "12px",
-                  padding: "8px 12px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                <span style={{ fontSize: "16px" }}>🤖</span>
-                <span>
-                  {isTelegramLinked ? "TG подключён" : "Подключить Telegram"}
-                </span>
-              </button>
+                      setLinkTgError("Не удалось подключиться. Проверь интернет или открой консоль (F12).");
+                    } finally {
+                      setLinkTgLoading(false);
+                    }
+                  }}
+                  style={{
+                    borderRadius: "999px",
+                    border: isTelegramLinked
+                      ? "1px solid rgba(80,200,120,0.8)"
+                      : "1px solid rgba(42,171,238,0.7)",
+                    background: isTelegramLinked
+                      ? "rgba(80,200,120,0.18)"
+                      : "rgba(42,171,238,0.16)",
+                    color: isTelegramLinked
+                      ? "rgba(220,255,230,0.95)"
+                      : "#e3f5ff",
+                    fontSize: "12px",
+                    padding: "8px 12px",
+                    cursor: linkTgLoading ? "wait" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    whiteSpace: "nowrap",
+                    opacity: linkTgLoading ? 0.8 : 1,
+                  }}
+                >
+                  <span style={{ fontSize: "16px" }}>🤖</span>
+                  <span>
+                    {linkTgLoading
+                      ? "Загрузка…"
+                      : isTelegramLinked
+                        ? "TG подключён"
+                        : "Подключить Telegram"}
+                  </span>
+                </button>
+                {linkTgError && (
+                  <span style={{ fontSize: "11px", color: "#ff6b6b", maxWidth: "220px", textAlign: "right" }}>
+                    {linkTgError}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Row 2: Ежедневный отчёт + кнопка очистки */}
