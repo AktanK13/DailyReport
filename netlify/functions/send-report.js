@@ -79,24 +79,6 @@ export const handler = async (event) => {
       };
     }
 
-    // Сообщение 2: plain text — легко выделить и скопировать целиком
-    const resp2 = await fetch(tgApi, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: botChatId,
-        text,
-        disable_web_page_preview: true,
-      }),
-    });
-
-    const data2 = await resp2.json();
-
-    if (!data2.ok) {
-      // первое сообщение уже ушло — не фейлим весь запрос, просто логируем
-      console.error("Telegram API error (plain msg)", data2);
-    }
-
     return {
       statusCode: 200,
       body: JSON.stringify({ ok: true }),
