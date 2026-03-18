@@ -67,6 +67,16 @@ export const handler = async (event) => {
         chat_id: botChatId,
         text: htmlText,
         parse_mode: "HTML",
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "📋 Скопировать",
+                copy_text: { text },
+              },
+            ],
+          ],
+        },
       }),
     });
 
