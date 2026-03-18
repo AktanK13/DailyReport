@@ -318,11 +318,15 @@ export default function ReportApp() {
     try {
       const text = generateReport();
 
-      // 1) Отправка через Netlify-функцию в рабочий чат (как раньше)
-      const resp = await fetch("/.netlify/functions/send-report", {
+      // Отправка отчёта в бот на Render: сохраняет в БД и шлёт в TG
+      const resp = await fetch(`${API_BASE}/api/report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          userId: USER_ID,
+          text,
+          date: reportDate,
+        }),
       });
 
       if (!resp.ok) {
@@ -330,24 +334,8 @@ export default function ReportApp() {
       }
 
       const data = await resp.json().catch(() => ({}));
-      if (data && data.error && !data.ok) {
-        throw new Error("Telegram API error");
-      }
-
-      // 2) Отправка отчёта в твой бот на Render для сохранения в БД
-      try {
-        await fetch(`${API_BASE}/api/report`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: USER_ID,
-            text,
-            date: reportDate,
-          }),
-        });
-      } catch (e) {
-        // не ломаем основной флоу, просто логируем
-        console.error("Error sending report to bot API", e);
+      if (data && data.error) {
+        throw new Error("Bot API error");
       }
 
       setSendStatus("ok");
